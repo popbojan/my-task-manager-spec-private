@@ -1,7 +1,8 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.0.3
+  version: 1.0.4
+
 paths:
   /auth/request-otp:
     post:
@@ -36,6 +37,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
   /auth/login-with-otp:
     post:
       summary: Login using an email and the received OTP
@@ -48,13 +50,47 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: OTP verified and access token generated
+          description: OTP verified and access token generated. A refresh token cookie is set.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: HttpOnly refresh token cookie (refreshToken=...; HttpOnly; Secure; SameSite=...)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
         '401':
           description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token using refresh token cookie
+      operationId: refreshAccessToken
+      responses:
+        '200':
+          description: New access token issued. Refresh token cookie may be rotated.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: HttpOnly refresh token cookie (refreshToken=...; HttpOnly; Secure; SameSite=...)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Missing, invalid, or expired refresh token
           content:
             application/json:
               schema:
