@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.0.4
+  version: 1.0.5
 
 paths:
   /auth/request-otp:
@@ -91,6 +91,30 @@ paths:
                 $ref: '#/components/schemas/LoginResponse'
         '401':
           description: Missing, invalid, or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/logout:
+    post:
+      summary: Logout user and invalidate refresh token
+      operationId: logout
+      responses:
+        '204':
+          description: Successfully logged out. Refresh token cookie is cleared.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Clears the refresh token cookie (refreshToken=; Max-Age=0; ...)
+        '401':
+          description: No valid refresh token provided
           content:
             application/json:
               schema:
