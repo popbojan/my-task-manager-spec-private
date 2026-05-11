@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.0.8
+  version: 1.0.7
 
 paths:
   /auth/request-otp:
