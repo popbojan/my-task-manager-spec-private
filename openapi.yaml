@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.0.8
+  version: 1.1.0
 
 paths:
   /auth/request-otp:
@@ -293,6 +293,197 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /recurring-tasks:
+    get:
+      summary: Get recurring tasks for the authenticated user
+      description: Returns all recurring tasks owned by the authenticated user.
+      operationId: getRecurringTasks
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: List of recurring tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecurringTask'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create a new recurring task
+      description: Creates a daily, weekly, or monthly recurring task.
+      operationId: createRecurringTask
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRecurringTaskRequest'
+      responses:
+        '201':
+          description: Recurring task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringTask'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /recurring-tasks/{recurringTaskId}:
+    get:
+      summary: Get a single recurring task
+      operationId: getRecurringTask
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: recurringTaskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Recurring task found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringTask'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recurring task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      summary: Update a recurring task
+      description: Updates title, description, status, or frequency of a recurring task.
+      operationId: updateRecurringTask
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: recurringTaskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRecurringTaskRequest'
+      responses:
+        '200':
+          description: Recurring task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringTask'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recurring task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a recurring task
+      operationId: deleteRecurringTask
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: recurringTaskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Recurring task deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /recurring-task-progress:
+    get:
+      summary: Get recurring task progress for the authenticated user
+      description: Returns the global streak counter for recurring tasks.
+      operationId: getRecurringTaskProgress
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: Recurring task progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringTaskProgress'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -439,3 +630,131 @@ components:
           type: string
           format: date-time
           nullable: true
+          
+    RecurringTaskStatus:
+      type: string
+      description: Status of a recurring task. Recurring tasks do not have review.
+      enum:
+        - todo
+        - in_progress
+        - done
+      
+    RecurringFrequency:
+      type: string
+      description: Defines how often the task repeats.
+      enum:
+        - daily
+        - weekly
+        - monthly
+      
+    RecurringTask:
+      type: object
+      required:
+        - id
+        - title
+        - status
+        - frequency
+        - streakCount
+        - nextResetAt
+        - email
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: "Learning German"
+        description:
+          type: string
+          nullable: true
+          example: "Reading or writing for 30 minutes"
+        status:
+          $ref: '#/components/schemas/RecurringTaskStatus'
+        frequency:
+          $ref: '#/components/schemas/RecurringFrequency'
+        streakCount:
+          type: integer
+          description: Number of successful repetitions in a row.
+          example: 7
+        lastCompletedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last time this recurring task was marked as done.
+          example: "2026-06-06T18:30:00.000Z"
+        lastResetAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last time the backend reset this task back to todo.
+          example: "2026-06-07T00:00:00.000Z"
+        nextResetAt:
+          type: string
+          format: date-time
+          description: Next planned reset time calculated by the backend.
+          example: "2026-06-07T00:00:00.000Z"
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateRecurringTaskRequest:
+      type: object
+      required:
+        - title
+        - frequency
+      properties:
+        title:
+          type: string
+          example: "Learning German"
+        description:
+          type: string
+          nullable: true
+          example: "Reading or writing for 30 minutes"
+        frequency:
+          $ref: '#/components/schemas/RecurringFrequency'
+    
+    UpdateRecurringTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Learning German"
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/RecurringTaskStatus'
+        frequency:
+          $ref: '#/components/schemas/RecurringFrequency'
+    
+    RecurringTaskProgress:
+      type: object
+      required:
+        - id
+        - email
+        - allTasksStreak
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        allTasksStreak:
+          type: integer
+          description: Number of periods in a row where all recurring tasks were completed.
+          example: 4
+        lastCheckedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last time the backend checked whether all recurring tasks were completed.
+          example: "2026-06-07T00:00:00.000Z"
