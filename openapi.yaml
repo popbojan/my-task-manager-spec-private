@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.2.0
+  version: 1.2.1
 
 paths:
   /users/me:
@@ -558,9 +558,11 @@ components:
     Language:
       type: string
       enum:
-        - en
-        - de
         - sr
+        - de
+        - fr
+        - en
+      default: de
       example: de
 
     User:
