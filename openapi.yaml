@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.2.1
+  version: 1.3.0
 
 paths:
   /users/me:
@@ -526,10 +526,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /mastery-levels:
+    get:
+      summary: Get all mastery levels
+      description: Returns the complete ordered list of 24 mastery levels. This endpoint is public so the levels can be displayed before login.
+      operationId: getMasteryLevels
+      responses:
+        '200':
+          description: Ordered list of mastery levels
+          content:
+            application/json:
+              schema:
+                type: array
+                minItems: 24
+                maxItems: 24
+                items:
+                  $ref: '#/components/schemas/MasteryLevel'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /recurring-task-progress:
     get:
       summary: Get recurring task progress for the authenticated user
-      description: Returns the global streak counter for recurring tasks.
+      description: Returns the user's global recurring-task streak, current mastery level, and highest achievements reached.
       operationId: getRecurringTaskProgress
       security:
         - bearerAuth: [ ]
@@ -737,7 +760,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          
+
     RecurringTaskStatus:
       type: string
       description: Status of a recurring task. Recurring tasks do not have review.
@@ -745,7 +768,7 @@ components:
         - todo
         - in_progress
         - done
-      
+
     RecurringFrequency:
       type: string
       description: Defines how often the task repeats.
@@ -753,7 +776,7 @@ components:
         - daily
         - weekly
         - monthly
-      
+
     RecurringTask:
       type: object
       required:
@@ -823,7 +846,7 @@ components:
           example: "Reading or writing for 30 minutes"
         frequency:
           $ref: '#/components/schemas/RecurringFrequency'
-    
+
     UpdateRecurringTaskRequest:
       type: object
       properties:
@@ -837,23 +860,120 @@ components:
           $ref: '#/components/schemas/RecurringTaskStatus'
         frequency:
           $ref: '#/components/schemas/RecurringFrequency'
-    
-    RecurringTaskProgress:
+
+    MasteryLevel:
       type: object
       required:
         - id
-        - allTasksStreak
+        - number
+        - nameEn
+        - nameDe
+        - nameFr
+        - nameSr
+        - avatarKey
+        - avatarRevealed
+        - requiredStreak
+        - maxAllowedTasks
+        - createdAt
+        - updatedAt
       properties:
         id:
           type: string
           format: uuid
-        allTasksStreak:
+        number:
           type: integer
-          description: Number of periods in a row where all recurring tasks were completed.
+          minimum: 1
+          maximum: 24
+          description: Unique mastery level number.
           example: 4
+        nameEn:
+          type: string
+          example: "Disciplined Fighter"
+        nameDe:
+          type: string
+          example: "Disziplinierter Kämpfer"
+        nameFr:
+          type: string
+          example: "Combattant discipliné"
+        nameSr:
+          type: string
+          example: "Disciplinovani borac"
+        avatarKey:
+          type: string
+          description: Stable key used by the frontend to resolve the level avatar.
+          example: "level-04-disciplined-fighter"
+        avatarRevealed:
+          type: boolean
+          description: Whether the avatar may be displayed publicly.
+          example: false
+        requiredStreak:
+          type: integer
+          minimum: 0
+          description: Minimum global daily streak required to reach this level.
+          example: 90
+        maxAllowedTasks:
+          type: integer
+          minimum: 1
+          description: Maximum number of active recurring tasks allowed at this level.
+          example: 4
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    RecurringTaskProgress:
+      type: object
+      required:
+        - id
+        - currentStreak
+        - highestStreakReached
+        - currentLevel
+        - highestLevelReached
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        currentStreak:
+          type: integer
+          minimum: 0
+          description: Current number of consecutive successful days on which all required daily recurring tasks were completed.
+          example: 37
+        highestStreakReached:
+          type: integer
+          minimum: 0
+          description: Highest global recurring-task streak ever reached by the user. This value is not reduced when the current streak is lost.
+          example: 94
+        currentLevel:
+          type: integer
+          minimum: 1
+          maximum: 24
+          description: Current mastery level derived from the current streak. It can decrease after a failed day.
+          example: 2
+        highestLevelReached:
+          type: integer
+          minimum: 1
+          maximum: 24
+          description: Highest mastery level ever reached by the user. This value is not reduced when the current streak is lost.
+          example: 4
+        lastSuccessfulDay:
+          type: string
+          format: date-time
+          nullable: true
+          description: Most recent day on which all required daily recurring tasks were completed.
+          example: "2026-07-14T00:00:00.000Z"
         lastCheckedAt:
           type: string
           format: date-time
           nullable: true
-          description: Last time the backend checked whether all recurring tasks were completed.
-          example: "2026-06-07T00:00:00.000Z"
+          description: Last time the backend evaluated the user's global recurring-task progress.
+          example: "2026-07-15T00:00:00.000Z"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
