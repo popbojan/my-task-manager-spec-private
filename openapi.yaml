@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.3.0
+  version: 1.4.0
 
 paths:
   /users/me:
@@ -378,10 +378,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     post:
       summary: Create a new recurring task
-      description: Creates a daily, weekly, or monthly recurring task.
+      description: Creates a new daily recurring task.
       operationId: createRecurringTask
       security:
         - bearerAuth: [ ]
@@ -406,6 +412,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -451,7 +463,7 @@ paths:
 
     patch:
       summary: Update a recurring task
-      description: Updates title, description, status, or frequency of a recurring task.
+      description: Updates title, description or status of a recurring task.
       operationId: updateRecurringTask
       security:
         - bearerAuth: [ ]
@@ -565,6 +577,44 @@ paths:
                 $ref: '#/components/schemas/RecurringTaskProgress'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subscriptions/me:
+    get:
+      summary: Get current user's subscription
+      description: >
+        Returns the authenticated user's current premium access
+        and subscription details, if available.
+      operationId: getCurrentUserSubscription
+      security:
+        - bearerAuth: [ ]
+
+      responses:
+        '200':
+          description: Current subscription
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionAccess'
+
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        '500':
+          description: Internal Server Error
           content:
             application/json:
               schema:
@@ -769,21 +819,12 @@ components:
         - in_progress
         - done
 
-    RecurringFrequency:
-      type: string
-      description: Defines how often the task repeats.
-      enum:
-        - daily
-        - weekly
-        - monthly
-
     RecurringTask:
       type: object
       required:
         - id
         - title
         - status
-        - frequency
         - streakCount
         - nextResetAt
         - createdAt
@@ -801,8 +842,6 @@ components:
           example: "Reading or writing for 30 minutes"
         status:
           $ref: '#/components/schemas/RecurringTaskStatus'
-        frequency:
-          $ref: '#/components/schemas/RecurringFrequency'
         streakCount:
           type: integer
           description: Number of successful repetitions in a row.
@@ -835,7 +874,6 @@ components:
       type: object
       required:
         - title
-        - frequency
       properties:
         title:
           type: string
@@ -844,8 +882,6 @@ components:
           type: string
           nullable: true
           example: "Reading or writing for 30 minutes"
-        frequency:
-          $ref: '#/components/schemas/RecurringFrequency'
 
     UpdateRecurringTaskRequest:
       type: object
@@ -858,8 +894,6 @@ components:
           nullable: true
         status:
           $ref: '#/components/schemas/RecurringTaskStatus'
-        frequency:
-          $ref: '#/components/schemas/RecurringFrequency'
 
     MasteryLevel:
       type: object
@@ -977,3 +1011,111 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    SubscriptionProvider:
+      type: string
+      enum:
+        - stripe
+        - apple
+        - google_play
+
+    SubscriptionStatus:
+      type: string
+      enum:
+        - pending
+        - active
+        - trialing
+        - grace_period
+        - past_due
+        - canceled
+        - expired
+        - revoked
+
+    SubscriptionType:
+      type: string
+      enum:
+        - monthly
+        - yearly
+        - lifetime
+
+    Subscription:
+      type: object
+
+      required:
+        - id
+        - provider
+        - type
+        - status
+        - productId
+        - cancelAtPeriodEnd
+        - createdAt
+        - updatedAt
+
+      properties:
+
+        id:
+          type: string
+          format: uuid
+
+        provider:
+          $ref: '#/components/schemas/SubscriptionProvider'
+
+        type:
+          $ref: '#/components/schemas/SubscriptionType'
+
+        status:
+          $ref: '#/components/schemas/SubscriptionStatus'
+
+        productId:
+          type: string
+          example: premium-yearly
+
+        currentPeriodStart:
+          type: string
+          format: date-time
+          nullable: true
+
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          nullable: true
+
+        cancelAtPeriodEnd:
+          type: boolean
+          example: false
+
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+        canceledAt:
+          type: string
+          format: date-time
+          nullable: true
+
+        createdAt:
+          type: string
+          format: date-time
+
+        updatedAt:
+          type: string
+          format: date-time
+
+    SubscriptionAccess:
+      type: object
+
+      required:
+        - hasPremiumAccess
+        - subscription
+
+      properties:
+
+        hasPremiumAccess:
+          type: boolean
+          example: true
+
+        subscription:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Subscription'
