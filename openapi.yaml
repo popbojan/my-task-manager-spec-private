@@ -620,6 +620,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /subscriptions/checkout-session:
+    post:
+      summary: Create a Stripe Checkout session
+      operationId: createCheckoutSession
+      security:
+        - bearerAuth: [ ]
+
+      responses:
+        '200':
+          description: Checkout session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutSession'
+
+        '401':
+          description: Authentication required.
+
+        '500':
+          description: Internal server error.
+
+  /subscriptions/customer-portal:
+    post:
+      summary: Create a Stripe Customer Portal session
+      description: >
+        Creates a Stripe Customer Portal session for the authenticated user.
+        The portal allows the user to manage or cancel their subscription,
+        update their payment method, and view invoices.
+      operationId: createCustomerPortalSession
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: Customer Portal session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPortalSession'
+        '400':
+          description: No Stripe customer exists for the authenticated user
+        '401':
+          description: Authentication required
+        '500':
+          description: Internal server error
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1119,3 +1164,24 @@ components:
           nullable: true
           allOf:
             - $ref: '#/components/schemas/Subscription'
+
+    CheckoutSession:
+      type: object
+      required:
+        - checkoutUrl
+      properties:
+        checkoutUrl:
+          type: string
+          format: uri
+          example: https://checkout.stripe.com/c/pay/cs_test_...
+
+    CustomerPortalSession:
+      type: object
+      required:
+        - portalUrl
+      properties:
+        portalUrl:
+          type: string
+          format: uri
+          description: URL of the Stripe Customer Portal session
+          example: https://billing.stripe.com/p/session/test_123456789
