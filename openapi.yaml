@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.4.1
+  version: 1.5.0
 
 paths:
   /users/me:
@@ -49,7 +49,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserPreferencesResponse'
         '400':
-          description: Bad Request (e.g. invalid language)
+          description: Bad Request (e.g. invalid language or timezone)
           content:
             application/json:
               schema:
@@ -683,12 +683,18 @@ components:
       default: de
       example: de
 
+    IanaTimezone:
+      type: string
+      description: IANA time zone identifier used for recurring-task daily resets at 00:05 local time.
+      example: Europe/Berlin
+
     User:
       type: object
       required:
         - id
         - email
         - language
+        - timezone
       properties:
         id:
           type: string
@@ -698,28 +704,35 @@ components:
           format: email
         language:
           $ref: '#/components/schemas/Language'
+        timezone:
+          $ref: '#/components/schemas/IanaTimezone'
 
     UpdateUserPreferencesRequest:
       type: object
-      required:
-        - language
+      description: Provide at least one of language or timezone.
       properties:
         language:
           $ref: '#/components/schemas/Language'
+        timezone:
+          $ref: '#/components/schemas/IanaTimezone'
 
     UserPreferencesResponse:
       type: object
       required:
         - language
+        - timezone
       properties:
         language:
           $ref: '#/components/schemas/Language'
+        timezone:
+          $ref: '#/components/schemas/IanaTimezone'
 
     OTPRequest:
       type: object
       required:
         - email
         - language
+        - timezone
       properties:
         email:
           type: string
@@ -727,6 +740,12 @@ components:
           example: "user@example.com"
         language:
           $ref: '#/components/schemas/Language'
+        timezone:
+          $ref: '#/components/schemas/IanaTimezone'
+          description: >
+            IANA time zone from the client browser
+            (`Intl.DateTimeFormat().resolvedOptions().timeZone`).
+            The backend validates and persists the supplied timezone.
 
     LoginRequest:
       type: object
@@ -734,6 +753,7 @@ components:
         - email
         - otp
         - language
+        - timezone
       properties:
         email:
           type: string
@@ -744,6 +764,12 @@ components:
           example: "123456"
         language:
           $ref: '#/components/schemas/Language'
+        timezone:
+          $ref: '#/components/schemas/IanaTimezone'
+          description: >
+            IANA time zone from the client browser
+            (`Intl.DateTimeFormat().resolvedOptions().timeZone`).
+            The backend validates and persists the supplied timezone.
 
     LoginResponse:
       type: object
@@ -901,13 +927,18 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: Last time the backend reset this task back to todo.
-          example: "2026-06-07T00:00:00.000Z"
+          description: >
+            UTC instant when the backend last reset this task back to todo. Resets are scheduled
+            for 00:05 in the user's configured IANA timezone; this timestamp reflects when the
+            reset job actually ran (typically shortly after that local time).
+          example: "2026-06-06T22:08:00.000Z"
         nextResetAt:
           type: string
           format: date-time
-          description: Next planned reset time calculated by the backend.
-          example: "2026-06-07T00:00:00.000Z"
+          description: >
+            UTC instant of the next scheduled daily reset, calculated by the backend as 00:05 on
+            the next reset calendar day in the user's configured IANA timezone (not UTC midnight).
+          example: "2026-06-07T22:05:00.000Z"
         createdAt:
           type: string
           format: date-time
