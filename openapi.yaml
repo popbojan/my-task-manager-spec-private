@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.5.0
+  version: 1.6.0
 
 paths:
   /users/me:
@@ -685,7 +685,8 @@ components:
 
     IanaTimezone:
       type: string
-      description: IANA time zone identifier used for recurring-task daily resets at 00:05 local time.
+      minLength: 1
+      description: IANA timezone identifier (not a UTC offset such as UTC+2 or GMT-4) used for recurring-task daily resets at 00:05 local time.
       example: Europe/Berlin
 
     User:
@@ -705,7 +706,12 @@ components:
         language:
           $ref: '#/components/schemas/Language'
         timezone:
-          $ref: '#/components/schemas/IanaTimezone'
+          allOf:
+            - $ref: '#/components/schemas/IanaTimezone'
+          description: >
+            IANA timezone identifier currently stored for the user.
+            Example: Europe/Berlin or America/New_York.
+          example: Europe/Berlin
 
     UpdateUserPreferencesRequest:
       type: object
@@ -714,7 +720,13 @@ components:
         language:
           $ref: '#/components/schemas/Language'
         timezone:
-          $ref: '#/components/schemas/IanaTimezone'
+          allOf:
+            - $ref: '#/components/schemas/IanaTimezone'
+          description: >
+            IANA timezone identifier detected by the client.
+            The backend may use a timezone change to recalculate
+            timezone-dependent recurring-task reset timestamps.
+          example: America/New_York
 
     UserPreferencesResponse:
       type: object
@@ -725,14 +737,18 @@ components:
         language:
           $ref: '#/components/schemas/Language'
         timezone:
-          $ref: '#/components/schemas/IanaTimezone'
+          allOf:
+            - $ref: '#/components/schemas/IanaTimezone'
+          description: >
+            IANA timezone identifier currently stored for the user.
+            Example: Europe/Berlin or America/New_York.
+          example: Europe/Berlin
 
     OTPRequest:
       type: object
       required:
         - email
         - language
-        - timezone
       properties:
         email:
           type: string
@@ -740,12 +756,6 @@ components:
           example: "user@example.com"
         language:
           $ref: '#/components/schemas/Language'
-        timezone:
-          $ref: '#/components/schemas/IanaTimezone'
-          description: >
-            IANA time zone from the client browser
-            (`Intl.DateTimeFormat().resolvedOptions().timeZone`).
-            The backend validates and persists the supplied timezone.
 
     LoginRequest:
       type: object
@@ -753,7 +763,6 @@ components:
         - email
         - otp
         - language
-        - timezone
       properties:
         email:
           type: string
@@ -764,12 +773,6 @@ components:
           example: "123456"
         language:
           $ref: '#/components/schemas/Language'
-        timezone:
-          $ref: '#/components/schemas/IanaTimezone'
-          description: >
-            IANA time zone from the client browser
-            (`Intl.DateTimeFormat().resolvedOptions().timeZone`).
-            The backend validates and persists the supplied timezone.
 
     LoginResponse:
       type: object

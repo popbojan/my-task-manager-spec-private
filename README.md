@@ -2,12 +2,9 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
-## v1.5.0
+## v1.6.0
 
-- Add `User.timezone` (IANA time zone, required)
-- Add required `timezone` on `OTPRequest` and `LoginRequest` (browser IANA timezone captured on registration)
-- Add optional `timezone` on `UpdateUserPreferencesRequest` (language is now optional too; at least one field required)
-- Add `timezone` to `UserPreferencesResponse`
-- Add `IanaTimezone` schema
-- Clarify `RecurringTask.lastResetAt` / `nextResetAt` as UTC instants aligned to 00:05 in the user's IANA timezone (not UTC midnight)
-- Registration contract: clients must always send browser timezone on auth requests; backend must persist the supplied IANA timezone and must not substitute UTC
+- Centralize timezone as a user preference: only `PATCH /users/me/preferences` may update the persisted timezone
+- `GET /users/me` returns the stored IANA timezone on the `User` response
+- `UpdateUserPreferencesRequest.timezone` remains optional (at least one of `language` or `timezone` required)
+- Add `minLength: 1` on `IanaTimezone`; semantic IANA validation deferred to backend implementation
