@@ -36,8 +36,8 @@ paths:
         Deletes the authenticated user's account and associated application data.
         Requires explicit user confirmation in the client and recent OTP authentication.
         Checks all subscription providers against fresh provider data before deletion.
-        Renewable subscriptions must first be canceled; canceled subscriptions with
-        remaining paid access and lifetime purchases do not block deletion.
+        Running subscriptions must first be canceled; subscriptions already set to
+        cancel at period end do not block deletion.
         Does not cancel store subscriptions, refund purchases, or delete the user's
         Google, Apple, or Stripe account.
       security:
@@ -65,7 +65,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: A renewable subscription must first be canceled.
+          description: A running subscription must first be canceled.
           content:
             application/json:
               schema:
