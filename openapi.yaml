@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.6.0
+  version: 1.7.0
 
 paths:
   /users/me:
@@ -29,6 +29,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Permanently delete the current user's account
+      operationId: deleteCurrentUser
+      description: >
+        Deletes the authenticated user's account and associated application data.
+        Requires explicit user confirmation in the client and recent OTP authentication.
+        Checks all subscription providers against fresh provider data before deletion.
+        Renewable subscriptions must first be canceled; canceled subscriptions with
+        remaining paid access and lifetime purchases do not block deletion.
+        Does not cancel store subscriptions, refund purchases, or delete the user's
+        Google, Apple, or Stripe account.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '204':
+          description: >
+            Application account and data deleted; all sessions revoked. Any required
+            provider cleanup is durably queued and completed with retries.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Clears the refresh token cookie using its original path and domain.
+        '401':
+          description: Missing or invalid authentication, including a previously deleted account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Recent OTP authentication required; code REAUTHENTICATION_REQUIRED.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A renewable subscription must first be canceled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletionBlockedError'
+        '503':
+          description: >
+            Subscription status could not be verified; code
+            SUBSCRIPTION_VERIFICATION_UNAVAILABLE. No account data is deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error; database deletion is rolled back.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /users/me/preferences:
     patch:
       summary: Update current user's preferences
@@ -783,9 +839,43 @@ components:
           type: string
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
+    AccountDeletionBlockingSubscription:
+      type: object
+      required: [ provider, subscriptionId, cancellationAction ]
+      properties:
+        provider:
+          $ref: '#/components/schemas/SubscriptionProvider'
+        subscriptionId:
+          type: string
+          description: Local subscription identifier; never a provider secret or purchase token.
+        cancellationAction:
+          type: string
+          enum: [ open_google_play_subscriptions, open_apple_subscriptions, create_stripe_customer_portal ]
+
+    AccountDeletionBlockedError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          required: [ statusCode, error, message, code, blockingSubscriptions ]
+          properties:
+            statusCode:
+              type: integer
+              enum: [ 409 ]
+            code:
+              type: string
+              enum: [ ACCOUNT_DELETION_BLOCKED_BY_SUBSCRIPTION ]
+            blockingSubscriptions:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/AccountDeletionBlockingSubscription'
+
     ErrorResponse:
       type: object
       properties:
+        code:
+          type: string
+          example: REAUTHENTICATION_REQUIRED
         statusCode:
           type: integer
           example: 400
