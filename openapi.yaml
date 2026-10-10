@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.7.1
+  version: 1.8.0
 
 paths:
   /users/me:
@@ -752,6 +752,7 @@ components:
         - email
         - language
         - timezone
+        - isNewUser
       properties:
         id:
           type: string
@@ -768,6 +769,13 @@ components:
             IANA timezone identifier currently stored for the user.
             Example: Europe/Berlin or America/New_York.
           example: Europe/Berlin
+        isNewUser:
+          type: boolean
+          description: >
+            Whether the backend considers this account a new user (e.g. for
+            first-run onboarding). Evaluated server-side; clients must not
+            derive this locally.
+          example: true
 
     UpdateUserPreferencesRequest:
       type: object
