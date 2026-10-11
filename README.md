@@ -2,6 +2,15 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.9.0
+
+- Add `isNewUser` to the `User` schema returned by `GET /users/me` (server-evaluated onboarding hint; clients must not derive it locally)
+- Add `GET /history?month=YYYY-MM` for monthly recurring-task daily history and notes (board tasks excluded; days ordered by date ascending)
+- Add `PUT /history/{date}/note` to create or replace a daily note (1–2000 Unicode code points, non-blank after trim)
+- Add `DELETE /history/{date}/note` to remove a note without changing daily task results (`204` even when absent)
+- Add schemas `HistoryDayStatus`, `HistoryDay`, `HistoryResponse`, `PutHistoryNoteRequest`, and `HistoryNoteResponse`
+- Document day statuses (`in_progress`, `success`, `missed`, `no_tasks`, `unknown`), provisional current-day results, and alignment with existing recurring-task progress and 00:05 local reset rules
+
 ## v1.7.1
 
 - Clarify `DELETE /users/me` subscription blocking: only running subscriptions block deletion; subscriptions already set to cancel at period end do not block

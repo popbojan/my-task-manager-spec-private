@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.8.0
+  version: 1.9.0
 
 paths:
   /users/me:
@@ -721,6 +721,160 @@ paths:
         '500':
           description: Internal server error
 
+  /history:
+    get:
+      summary: Get monthly daily history for the authenticated user
+      operationId: getHistory
+      description: >
+        Returns the authenticated user's recurring-task history and notes
+        for the requested month. Ordinary board tasks are excluded.
+        Entries are ordered by date ascending and unique per user and date.
+        Every completed day with recurring tasks must have a recorded result,
+        even if the user did not open the app.
+        If at least one counted task was not completed by the daily cutoff,
+        the day is marked as missed, including days with zero completed tasks.
+        Dates before history tracking began may have no recorded data.
+        Future dates are included when a note exists.
+        Note-only entries have status unknown and null task counts.
+        Current-day results are provisional and may change until finalized.
+        Success is visible immediately when all counted tasks are completed.
+        Finalized results remain unchanged; notes remain editable.
+        Historical dates retain their original local date after timezone changes.
+        No subscription requirement is added by this contract.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: month
+          in: query
+          required: true
+          description: >
+            Calendar month in YYYY-MM format; year 0001 through 9999.
+            Invalid months are rejected.
+          schema:
+            type: string
+            pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          example: '2026-10'
+      responses:
+        '200':
+          description: Monthly history; days may be empty.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid bearer authentication.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /history/{date}/note:
+    parameters:
+      - name: date
+        in: path
+        required: true
+        description: >
+          Valid calendar date in YYYY-MM-DD format.
+                    Past, present, and future dates are allowed,
+                    including dates before account creation.
+        schema:
+          type: string
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        example: '2026-10-10'
+
+    put:
+      summary: Create or replace a daily history note
+      operationId: putHistoryNote
+      description: >
+        Stores one note per authenticated user and date.
+        Trim leading and trailing whitespace before storage.
+        Reject blank text and text longer than 2000 Unicode code points
+        before trimming. Preserve internal whitespace and line breaks.
+        Repeating the same request has the same effect.
+        Last committed write wins.
+        Notes are allowed without a recorded daily result and must not
+        create success, missed, or task counts.
+        Task results cannot be modified through this endpoint.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutHistoryNoteRequest'
+      responses:
+        '200':
+          description: Note created or replaced; returns normalized stored text.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryNoteResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid bearer authentication.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a daily history note
+      operationId: deleteHistoryNote
+      description: >
+        Deletes only the authenticated user's note for this date,
+        preserving any daily result.
+        Returns 204 even when no note exists.
+        After deletion, a date without a recorded result is omitted
+        from GET /history.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '204':
+          description: Note removed or already absent.
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid bearer authentication.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1317,3 +1471,124 @@ components:
           format: uri
           description: URL of the Stripe Customer Portal session
           example: https://billing.stripe.com/p/session/test_123456789
+
+    HistoryDayStatus:
+      type: string
+      enum:
+        - in_progress
+        - success
+        - missed
+        - no_tasks
+        - unknown
+      description: >
+        in_progress: non-finalized day with outstanding tasks.
+        success: at least one counted task and all completed.
+        missed: finalized day with at least one outstanding task.
+        no_tasks: known day with zero counted tasks.
+        unknown: note exists but no recorded daily result; counts are null.
+        Status is calculated by the backend using the same counted task
+        set and success rules as global recurring-task progress.
+
+    HistoryDay:
+      type: object
+      required:
+        - date
+        - status
+        - completedTasks
+        - totalTasks
+        - note
+        - finalizedAt
+      description: >
+        Known counts satisfy 0 <= completedTasks <= totalTasks.
+        success requires completedTasks = totalTasks > 0.
+        missed and in_progress require completedTasks < totalTasks.
+        in_progress requires finalizedAt null.
+        no_tasks requires both counts zero.
+        unknown requires both counts null and finalizedAt null.
+        missed requires a non-null finalizedAt.
+        Finalization follows existing recurring-task day/reset rules,
+        currently reset scheduled at 00:05 local time.
+        Calendar history must not introduce a different streak cutoff.
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2026-10-10'
+        status:
+          $ref: '#/components/schemas/HistoryDayStatus'
+        completedTasks:
+          type: integer
+          minimum: 0
+          nullable: true
+          example: 3
+        totalTasks:
+          type: integer
+          minimum: 0
+          nullable: true
+          example: 7
+        note:
+          type: string
+          nullable: true
+          maxLength: 2000
+          example: Heute war ich unterwegs.
+        finalizedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            UTC instant of finalization; null while provisional or unknown.
+          example: '2026-10-10T22:05:00Z'
+
+    HistoryResponse:
+      type: object
+      required:
+        - month
+        - today
+        - timezone
+        - days
+      properties:
+        month:
+          type: string
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          example: '2026-10'
+        today:
+          type: string
+          format: date
+          description: Current calendar date in the user timezone.
+          example: '2026-10-11'
+        timezone:
+          $ref: '#/components/schemas/IanaTimezone'
+        days:
+          type: array
+          maxItems: 31
+          items:
+            $ref: '#/components/schemas/HistoryDay'
+
+    PutHistoryNoteRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - note
+      properties:
+        note:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: '\S'
+          example: Heute war ich unterwegs.
+
+    HistoryNoteResponse:
+      type: object
+      required:
+        - date
+        - note
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2026-10-10'
+        note:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: Heute war ich unterwegs.
