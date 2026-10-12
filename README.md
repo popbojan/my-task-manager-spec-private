@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.9.1
+
+- Add `server_skipped` to `HistoryDayStatus` for history days the backend did not finalize or evaluate under normal daily rules
+
 ## v1.9.0
 
 - Add `isNewUser` to the `User` schema returned by `GET /users/me` (server-evaluated onboarding hint; clients must not derive it locally)

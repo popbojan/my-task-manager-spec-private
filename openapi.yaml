@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.9.0
+  version: 1.9.1
 
 paths:
   /users/me:
@@ -1479,12 +1479,14 @@ components:
         - success
         - missed
         - no_tasks
+        - server_skipped
         - unknown
       description: >
         in_progress: non-finalized day with outstanding tasks.
         success: at least one counted task and all completed.
         missed: finalized day with at least one outstanding task.
         no_tasks: known day with zero counted tasks.
+        server_skipped: finalized day without a normal daily evaluation result.
         unknown: note exists but no recorded daily result; counts are null.
         Status is calculated by the backend using the same counted task
         set and success rules as global recurring-task progress.
