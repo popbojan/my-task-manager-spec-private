@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.9.2
+
+- Add `currentStreak` to `HistoryDay` (snapshot of global recurring-task streak after each evaluated calendar day; nullable for `unknown` and `server_skipped`)
+
 ## v1.9.1
 
 - Add `server_skipped` to `HistoryDayStatus` for history days the backend did not finalize or evaluate under normal daily rules
