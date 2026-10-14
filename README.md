@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.9.3
+
+- Add `currentLevel` to `HistoryDay` (snapshot of global mastery level after each evaluated calendar day; nullable for `unknown` and `server_skipped`; range 1–24)
+
 ## v1.9.2
 
 - Add `currentStreak` to `HistoryDay` (snapshot of global recurring-task streak after each evaluated calendar day; nullable for `unknown` and `server_skipped`)

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.9.2
+  version: 1.9.3
 
 paths:
   /users/me:
@@ -740,7 +740,7 @@ paths:
         Success is visible immediately when all counted tasks are completed.
         Finalized results remain unchanged; notes remain editable.
         Each finalized day stores a snapshot of the global recurring-task
-        currentStreak after that day's evaluation.
+        currentStreak and currentLevel after that day's evaluation.
         Historical dates retain their original local date after timezone changes.
         No subscription requirement is added by this contract.
       security:
@@ -1503,6 +1503,7 @@ components:
         - note
         - finalizedAt
         - currentStreak
+        - currentLevel
       description: >
         Known counts satisfy 0 <= completedTasks <= totalTasks.
         success requires completedTasks = totalTasks > 0.
@@ -1513,8 +1514,10 @@ components:
         missed requires a non-null finalizedAt.
         currentStreak is the global recurring-task streak after this calendar
         day was processed; null for unknown and server_skipped days.
-        Finalized success, missed, and no_tasks days store a non-null snapshot.
-        in_progress may expose the live streak until finalization.
+        currentLevel is the global mastery level derived from that streak after
+        this calendar day was processed; null for unknown and server_skipped days.
+        Finalized success, missed, and no_tasks days store non-null snapshots.
+        in_progress may expose live streak and level until finalization.
         Finalization follows existing recurring-task day/reset rules,
         currently reset scheduled at 00:05 local time.
         Calendar history must not introduce a different streak cutoff.
@@ -1555,6 +1558,15 @@ components:
             Snapshot of the user's global recurring-task currentStreak after
             this calendar day was evaluated; aligns with RecurringTaskProgress.
           example: 12
+        currentLevel:
+          type: integer
+          minimum: 1
+          maximum: 24
+          nullable: true
+          description: >
+            Snapshot of the user's global recurring-task currentLevel after
+            this calendar day was evaluated; aligns with RecurringTaskProgress.
+          example: 2
 
     HistoryResponse:
       type: object
