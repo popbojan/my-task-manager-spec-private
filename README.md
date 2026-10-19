@@ -2,6 +2,12 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.10.0
+
+- Remove `User.isNewUser` (deprecated onboarding flag)
+- Add nullable onboarding timestamps on `User`: `personalIntroSeenAt`, `mobileOnboardingSeenAt`, `webOnboardingSeenAt` (`GET /users/me`)
+- Allow setting onboarding timestamps via `PATCH /users/me/preferences`; include them in `UserPreferencesResponse`
+
 ## v1.9.3
 
 - Add `currentLevel` to `HistoryDay` (snapshot of global mastery level after each evaluated calendar day; nullable for `unknown` and `server_skipped`; range 1–24)
