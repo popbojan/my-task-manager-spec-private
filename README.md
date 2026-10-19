@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.10.1
+
+- Add optional `mobileAppVersion` on `PATCH /users/me/preferences` (write-only; mobile reports installed version, not returned in API responses)
+
 ## v1.10.0
 
 - Remove `User.isNewUser` (deprecated onboarding flag)

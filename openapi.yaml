@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.10.0
+  version: 1.10.1
 
 paths:
   /users/me:
@@ -953,7 +953,7 @@ components:
       type: object
       description: >
         Provide at least one of language, timezone, personalIntroSeenAt,
-        mobileOnboardingSeenAt, or webOnboardingSeenAt.
+        mobileOnboardingSeenAt, webOnboardingSeenAt, or mobileAppVersion.
       properties:
         language:
           $ref: '#/components/schemas/Language'
@@ -980,6 +980,12 @@ components:
           format: date-time
           description: >
             Set when the user completes web onboarding (typically the current UTC instant).
+        mobileAppVersion:
+          type: string
+          minLength: 1
+          description: >
+            Mobile clients should send the installed app version (e.g. semver).
+            Write-only for backend tracking; not returned in preference or user responses.
 
     UserPreferencesResponse:
       type: object
