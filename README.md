@@ -2,6 +2,11 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.10.2
+
+- Add `personalFocusTaskName` and `personalFocusMotivation` on `User` and `UserPreferencesResponse` (nullable until set via personal intro)
+- Allow updating both fields via `PATCH /users/me/preferences`
+
 ## v1.10.1
 
 - Add optional `mobileAppVersion` on `PATCH /users/me/preferences` (write-only; mobile reports installed version, not returned in API responses)

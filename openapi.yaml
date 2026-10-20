@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.10.1
+  version: 1.10.2
 
 paths:
   /users/me:
@@ -911,6 +911,8 @@ components:
         - personalIntroSeenAt
         - mobileOnboardingSeenAt
         - webOnboardingSeenAt
+        - personalFocusTaskName
+        - personalFocusMotivation
       properties:
         id:
           type: string
@@ -932,14 +934,14 @@ components:
           format: date-time
           nullable: true
           description: >
-            UTC instant when the user completed the personal intro; null if not yet seen.
+            UTC instant when the user finished or skipped the personal intro; null if not yet seen.
           example: '2026-10-19T08:30:00.000Z'
         mobileOnboardingSeenAt:
           type: string
           format: date-time
           nullable: true
           description: >
-            UTC instant when the user completed mobile onboarding; null if not yet seen.
+            UTC instant when the user finished or skipped mobile onboarding; null if not yet seen.
           example: null
         webOnboardingSeenAt:
           type: string
@@ -948,12 +950,31 @@ components:
           description: >
             UTC instant when the user completed web onboarding; null if not yet seen.
           example: '2026-10-19T09:15:00.000Z'
+        personalFocusTaskName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          nullable: true
+          description: >
+            Daily task the user chose during personal intro (focus task name).
+            Null until set.
+          example: '30 Minuten Deutsch lernen'
+        personalFocusMotivation:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          nullable: true
+          description: >
+            Personal motivation ("why") captured during personal intro.
+            Null until set.
+          example: 'Ich möchte fließend sprechen können.'
 
     UpdateUserPreferencesRequest:
       type: object
       description: >
         Provide at least one of language, timezone, personalIntroSeenAt,
-        mobileOnboardingSeenAt, webOnboardingSeenAt, or mobileAppVersion.
+        mobileOnboardingSeenAt, webOnboardingSeenAt, mobileAppVersion,
+        personalFocusTaskName, or personalFocusMotivation.
       properties:
         language:
           $ref: '#/components/schemas/Language'
@@ -969,12 +990,12 @@ components:
           type: string
           format: date-time
           description: >
-            Set when the user completes the personal intro (typically the current UTC instant).
+            Set when the user finishes or skips the personal intro (typically the current UTC instant).
         mobileOnboardingSeenAt:
           type: string
           format: date-time
           description: >
-            Set when the user completes mobile onboarding (typically the current UTC instant).
+            Set when the user finishes or skips mobile onboarding (typically the current UTC instant).
         webOnboardingSeenAt:
           type: string
           format: date-time
@@ -986,6 +1007,18 @@ components:
           description: >
             Mobile clients should send the installed app version (e.g. semver).
             Write-only for backend tracking; not returned in preference or user responses.
+        personalFocusTaskName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: >
+            Daily focus task name from personal intro (replaces stored value when sent).
+        personalFocusMotivation:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: >
+            Personal motivation from personal intro (replaces stored value when sent).
 
     UserPreferencesResponse:
       type: object
@@ -995,6 +1028,8 @@ components:
         - personalIntroSeenAt
         - mobileOnboardingSeenAt
         - webOnboardingSeenAt
+        - personalFocusTaskName
+        - personalFocusMotivation
       properties:
         language:
           $ref: '#/components/schemas/Language'
@@ -1016,6 +1051,16 @@ components:
         webOnboardingSeenAt:
           type: string
           format: date-time
+          nullable: true
+        personalFocusTaskName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          nullable: true
+        personalFocusMotivation:
+          type: string
+          minLength: 1
+          maxLength: 2000
           nullable: true
 
     OTPRequest:
