@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.10.3
+
+- Add write-only `webLastLoginAt` and `webLastSeenAt` on `PATCH /users/me/preferences` for web-app tracing (UTC instants; not returned in API responses)
+
 ## v1.10.2
 
 - Add `personalFocusTaskName` and `personalFocusMotivation` on `User` and `UserPreferencesResponse` (nullable until set via personal intro)

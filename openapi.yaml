@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.10.2
+  version: 1.10.3
 
 paths:
   /users/me:
@@ -974,7 +974,8 @@ components:
       description: >
         Provide at least one of language, timezone, personalIntroSeenAt,
         mobileOnboardingSeenAt, webOnboardingSeenAt, mobileAppVersion,
-        personalFocusTaskName, or personalFocusMotivation.
+        personalFocusTaskName, personalFocusMotivation, webLastLoginAt,
+        or webLastSeenAt.
       properties:
         language:
           $ref: '#/components/schemas/Language'
@@ -1019,6 +1020,19 @@ components:
           maxLength: 2000
           description: >
             Personal motivation from personal intro (replaces stored value when sent).
+        webLastLoginAt:
+          type: string
+          format: date-time
+          description: >
+            Web clients send on successful login (UTC instant). Write-only for
+            backend web-app tracing; not returned in preference or user responses.
+        webLastSeenAt:
+          type: string
+          format: date-time
+          description: >
+            Web clients send on activity or session heartbeat (UTC instant).
+            Write-only for backend web-app tracing; not returned in preference
+            or user responses.
 
     UserPreferencesResponse:
       type: object
