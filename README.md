@@ -2,6 +2,12 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.11.0
+
+- Add `notificationEnabled` and `notificationTime` on `RecurringTask` (daily reminder preference per task)
+- Support both fields on `CreateRecurringTaskRequest` and `UpdateRecurringTaskRequest`
+- `notificationTime` is local `HH:mm` in the user's IANA timezone; non-null when reminders are enabled
+
 ## v1.10.4
 
 - Change default `Language` in the OpenAPI schema from `de` to `en` (example and default)
