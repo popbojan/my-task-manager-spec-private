@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.10.4
+
+- Change default `Language` in the OpenAPI schema from `de` to `en` (example and default)
+
 ## v1.10.3
 
 - Add write-only `webLastLoginAt` and `webLastSeenAt` on `PATCH /users/me/preferences` for web-app tracing (UTC instants; not returned in API responses)

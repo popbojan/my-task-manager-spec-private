@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.10.3
+  version: 1.10.4
 
 paths:
   /users/me:
@@ -892,8 +892,8 @@ components:
         - de
         - fr
         - en
-      default: de
-      example: de
+      default: en
+      example: en
 
     IanaTimezone:
       type: string
