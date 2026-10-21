@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.11.1
+
+- Clarify recurring-task `notificationTime`: may stay set when `notificationEnabled` is false so the user's last chosen reminder time is preserved (Create, Update, and `RecurringTask` response)
+
 ## v1.11.0
 
 - Add `notificationEnabled` and `notificationTime` on `RecurringTask` (daily reminder preference per task)

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.11.0
+  version: 1.11.1
 
 paths:
   /users/me:
@@ -1325,7 +1325,8 @@ components:
           description: >
             Local time of day (24-hour HH:mm) in the user's IANA timezone when
             the reminder should fire. Required non-null when notificationEnabled
-            is true; null when reminders are disabled.
+            is true. May remain set when reminders are disabled so the user's
+            previously selected time can be preserved.
           example: '09:30'
         createdAt:
           type: string
@@ -1355,8 +1356,9 @@ components:
           nullable: true
           pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
           description: >
-            Reminder time (HH:mm, user timezone). Required when notificationEnabled
-            is true; omit or null when disabled.
+            Reminder time (HH:mm, user timezone). Must be non-null when
+            notificationEnabled is true. May be null or already set when
+            notificationEnabled is false.
 
     UpdateRecurringTaskRequest:
       type: object
@@ -1377,7 +1379,8 @@ components:
           pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
           description: >
             Reminder time (HH:mm, user timezone). Must be non-null when
-            notificationEnabled is true after the update.
+            notificationEnabled is true after the update. May remain set when
+            reminders are disabled so the previously selected time is preserved.
 
     MasteryLevel:
       type: object
