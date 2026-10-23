@@ -2,6 +2,11 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.12.0
+
+- Add `POST /history/{date}/repair` to retroactively fix a finalized **missed** day (e.g. 6/7); response is the updated `HistoryDay` only (progress via `GET /recurring-task-progress`)
+- Add `HistoryDay.repairedAt`
+
 ## v1.11.1
 
 - Clarify recurring-task `notificationTime`: may stay set when `notificationEnabled` is false so the user's last chosen reminder time is preserved (Create, Update, and `RecurringTask` response)

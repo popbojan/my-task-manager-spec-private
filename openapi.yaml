@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.11.1
+  version: 1.12.0
 
 paths:
   /users/me:
@@ -744,6 +744,8 @@ paths:
         Each finalized day stores a snapshot of the global recurring-task
         currentStreak and currentLevel after that day's evaluation.
         Historical dates retain their original local date after timezone changes.
+        Finalized missed days with counted tasks may be repaired via
+        POST /history/{date}/repair (see that operation).
         No subscription requirement is added by this contract.
       security:
         - bearerAuth: [ ]
@@ -868,6 +870,71 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Missing or invalid bearer authentication.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /history/{date}/repair:
+    parameters:
+      - name: date
+        in: path
+        required: true
+        description: >
+          Calendar date in YYYY-MM-DD format (user-local history semantics).
+        schema:
+          type: string
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        example: '2026-10-22'
+
+    post:
+      summary: Repair a finalized missed history day
+      operationId: repairHistoryDay
+      description: >
+        Retroactively treats one finalized missed day as successful when the
+        user forgot to mark all counted recurring tasks done before the daily
+        cutoff (e.g. calendar shows 6/7 and status missed).
+        Sets the history day to success with completedTasks equal to totalTasks,
+        records repairedAt, and recomputes global recurring-task progress
+        (currentStreak, currentLevel) and affected history streak snapshots
+        from that date forward. Does not change today's live recurring-task
+        board statuses. Idempotent when the day is already success.
+        Only finalized days with status missed and totalTasks > 0 are repairable.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: >
+            Day repaired (or already success); returns the updated history day.
+            Global progress is recomputed server-side; clients load it via
+            GET /recurring-task-progress (e.g. on the Heute screen).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryDay'
+        '400':
+          description: Invalid date.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid bearer authentication.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: >
+            Day cannot be repaired; code HISTORY_DAY_NOT_REPAIRABLE (e.g. not
+            missed, not finalized, no counted tasks, or before history tracking).
           content:
             application/json:
               schema:
@@ -1658,6 +1725,7 @@ components:
         - finalizedAt
         - currentStreak
         - currentLevel
+        - repairedAt
       description: >
         Known counts satisfy 0 <= completedTasks <= totalTasks.
         success requires completedTasks = totalTasks > 0.
@@ -1666,6 +1734,8 @@ components:
         no_tasks requires both counts zero.
         unknown requires both counts null and finalizedAt null.
         missed requires a non-null finalizedAt.
+        After POST /history/{date}/repair, a missed day becomes success with
+        completedTasks set to totalTasks; repairedAt is set to the repair instant.
         currentStreak is the global recurring-task streak after this calendar
         day was processed; null for unknown and server_skipped days.
         currentLevel is the global mastery level derived from that streak after
@@ -1721,6 +1791,14 @@ components:
             Snapshot of the user's global recurring-task currentLevel after
             this calendar day was evaluated; aligns with RecurringTaskProgress.
           example: 2
+        repairedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            UTC instant when the user repaired this day via POST /history/{date}/repair;
+            null if never repaired.
+          example: '2026-10-23T10:00:00.000Z'
 
     HistoryResponse:
       type: object
