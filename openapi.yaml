@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.12.0
+  version: 1.12.1
 
 paths:
   /users/me:
@@ -744,8 +744,8 @@ paths:
         Each finalized day stores a snapshot of the global recurring-task
         currentStreak and currentLevel after that day's evaluation.
         Historical dates retain their original local date after timezone changes.
-        Finalized missed days with counted tasks may be repaired via
-        POST /history/{date}/repair (see that operation).
+        Finalized missed days with counted tasks may be repaired only for the
+        previous calendar day in the user's timezone via POST /history/yesterday/repair.
         No subscription requirement is added by this contract.
       security:
         - bearerAuth: [ ]
@@ -775,6 +775,59 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Missing or invalid bearer authentication.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /history/yesterday/repair:
+    post:
+      summary: Repair yesterday's finalized missed history day
+      operationId: repairHistoryDay
+      description: >
+        Repairs the calendar day immediately before today in the user's IANA
+        timezone (same notion of today as GET /history). The client does not
+        send a date; the backend selects that previous day.
+        For example, when today is 2026-10-23, this operation applies to
+        2026-10-22 only.
+        Retroactively treats that day as successful when the user forgot to
+        mark all counted recurring tasks done before the daily cutoff (e.g.
+        6/7 and status missed). Sets success with completedTasks equal to
+        totalTasks, records repairedAt, and recomputes global recurring-task
+        progress and affected history streak snapshots from that date forward.
+        Does not change today's live recurring-task board statuses.
+        Idempotent when that day is already success.
+        Only applies when that day is finalized with status missed and
+        totalTasks > 0.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: >
+            Yesterday repaired (or already success); returns the updated
+            history day. Global progress is recomputed server-side; clients
+            load it via GET /recurring-task-progress (e.g. on the Heute screen).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryDay'
+        '401':
+          description: Missing or invalid bearer authentication.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: >
+            Yesterday cannot be repaired; code HISTORY_DAY_NOT_REPAIRABLE
+            (e.g. not missed, not finalized, no counted tasks, no recorded
+            yesterday, or before history tracking).
           content:
             application/json:
               schema:
@@ -870,71 +923,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Missing or invalid bearer authentication.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /history/{date}/repair:
-    parameters:
-      - name: date
-        in: path
-        required: true
-        description: >
-          Calendar date in YYYY-MM-DD format (user-local history semantics).
-        schema:
-          type: string
-          format: date
-          pattern: '^\d{4}-\d{2}-\d{2}$'
-        example: '2026-10-22'
-
-    post:
-      summary: Repair a finalized missed history day
-      operationId: repairHistoryDay
-      description: >
-        Retroactively treats one finalized missed day as successful when the
-        user forgot to mark all counted recurring tasks done before the daily
-        cutoff (e.g. calendar shows 6/7 and status missed).
-        Sets the history day to success with completedTasks equal to totalTasks,
-        records repairedAt, and recomputes global recurring-task progress
-        (currentStreak, currentLevel) and affected history streak snapshots
-        from that date forward. Does not change today's live recurring-task
-        board statuses. Idempotent when the day is already success.
-        Only finalized days with status missed and totalTasks > 0 are repairable.
-      security:
-        - bearerAuth: [ ]
-      responses:
-        '200':
-          description: >
-            Day repaired (or already success); returns the updated history day.
-            Global progress is recomputed server-side; clients load it via
-            GET /recurring-task-progress (e.g. on the Heute screen).
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HistoryDay'
-        '400':
-          description: Invalid date.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Missing or invalid bearer authentication.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: >
-            Day cannot be repaired; code HISTORY_DAY_NOT_REPAIRABLE (e.g. not
-            missed, not finalized, no counted tasks, or before history tracking).
           content:
             application/json:
               schema:
@@ -1734,7 +1722,7 @@ components:
         no_tasks requires both counts zero.
         unknown requires both counts null and finalizedAt null.
         missed requires a non-null finalizedAt.
-        After POST /history/{date}/repair, a missed day becomes success with
+        After POST /history/yesterday/repair, a missed yesterday becomes success with
         completedTasks set to totalTasks; repairedAt is set to the repair instant.
         currentStreak is the global recurring-task streak after this calendar
         day was processed; null for unknown and server_skipped days.
@@ -1796,7 +1784,7 @@ components:
           format: date-time
           nullable: true
           description: >
-            UTC instant when the user repaired this day via POST /history/{date}/repair;
+            UTC instant when the user repaired this day via POST /history/yesterday/repair;
             null if never repaired.
           example: '2026-10-23T10:00:00.000Z'
 

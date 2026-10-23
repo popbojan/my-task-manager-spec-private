@@ -2,9 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
-## v1.12.0
+## v1.12.1
 
-- Add `POST /history/{date}/repair` to retroactively fix a finalized **missed** day (e.g. 6/7); response is the updated `HistoryDay` only (progress via `GET /recurring-task-progress`)
+- Add `POST /history/yesterday/repair` to retroactively fix **yesterday's** finalized **missed** day (e.g. 6/7); response is the updated `HistoryDay` only (progress via `GET /recurring-task-progress`)
+- No `{date}` path parameter — the backend selects the previous calendar day in the user's IANA timezone
 - Add `HistoryDay.repairedAt`
 
 ## v1.11.1
@@ -54,7 +55,6 @@ Shared OpenAPI contract for the Task Manager backend and frontend.
 
 ## v1.9.0
 
-- Add `isNewUser` to the `User` schema returned by `GET /users/me` (server-evaluated onboarding hint; clients must not derive it locally)
 - Add `GET /history?month=YYYY-MM` for monthly recurring-task daily history and notes (board tasks excluded; days ordered by date ascending)
 - Add `PUT /history/{date}/note` to create or replace a daily note (1–2000 Unicode code points, non-blank after trim)
 - Add `DELETE /history/{date}/note` to remove a note without changing daily task results (`204` even when absent)
