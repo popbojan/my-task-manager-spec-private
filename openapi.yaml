@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.12.1
+  version: 1.12.3
 
 paths:
   /users/me:
@@ -970,6 +970,7 @@ components:
         - webOnboardingSeenAt
         - personalFocusTaskName
         - personalFocusMotivation
+        - mobileAppVersion
       properties:
         id:
           type: string
@@ -1025,6 +1026,14 @@ components:
             Personal motivation ("why") captured during personal intro.
             Null until set.
           example: 'Ich möchte fließend sprechen können.'
+        mobileAppVersion:
+          type: string
+          minLength: 1
+          nullable: true
+          description: >
+            Last mobile app version reported by the client via PATCH /users/me/preferences.
+            Null until the mobile app has reported a version at least once.
+          example: '1.2.3'
 
     UpdateUserPreferencesRequest:
       type: object

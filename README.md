@@ -2,6 +2,14 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.12.3
+
+- Add nullable `mobileAppVersion` on `User` (`GET /users/me`) — last version reported by the mobile app; still writable via `PATCH /users/me/preferences` (not returned on `UserPreferencesResponse`)
+
+## v1.12.2
+
+- No API changes; semver bump for web client release (history repair UI)
+
 ## v1.12.1
 
 - Add `POST /history/yesterday/repair` to retroactively fix **yesterday's** finalized **missed** day (e.g. 6/7); response is the updated `HistoryDay` only (progress via `GET /recurring-task-progress`)
