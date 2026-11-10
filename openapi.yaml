@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.12.3
+  version: 1.13.0
 
 paths:
   /users/me:
@@ -955,7 +955,7 @@ components:
     IanaTimezone:
       type: string
       minLength: 1
-      description: IANA timezone identifier (not a UTC offset such as UTC+2 or GMT-4) used for recurring-task daily resets at 00:05 local time.
+      description: IANA timezone identifier (not a UTC offset such as UTC+2 or GMT-4) used for recurring-task daily resets at 00:00 local time.
       example: Europe/Berlin
 
     User:
@@ -1367,16 +1367,16 @@ components:
           nullable: true
           description: >
             UTC instant when the backend last reset this task back to todo. Resets are scheduled
-            for 00:05 in the user's configured IANA timezone; this timestamp reflects when the
+            for 00:00 in the user's configured IANA timezone; this timestamp reflects when the
             reset job actually ran (typically shortly after that local time).
-          example: "2026-06-06T22:08:00.000Z"
+          example: "2026-06-06T22:03:00.000Z"
         nextResetAt:
           type: string
           format: date-time
           description: >
-            UTC instant of the next scheduled daily reset, calculated by the backend as 00:05 on
+            UTC instant of the next scheduled daily reset, calculated by the backend as 00:00 on
             the next reset calendar day in the user's configured IANA timezone (not UTC midnight).
-          example: "2026-06-07T22:05:00.000Z"
+          example: "2026-06-07T22:00:00.000Z"
         notificationEnabled:
           type: boolean
           description: >
@@ -1740,7 +1740,7 @@ components:
         Finalized success, missed, and no_tasks days store non-null snapshots.
         in_progress may expose live streak and level until finalization.
         Finalization follows existing recurring-task day/reset rules,
-        currently reset scheduled at 00:05 local time.
+        currently reset scheduled at 00:00 local time.
         Calendar history must not introduce a different streak cutoff.
       properties:
         date:

@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.13.0
+
+- Change recurring-task daily reset from 00:05 to 00:00 local time in the user's configured IANA timezone (`IanaTimezone`, `lastResetAt`, `nextResetAt`, history day finalization)
+
 ## v1.12.3
 
 - Add nullable `mobileAppVersion` on `User` (`GET /users/me`) — last version reported by the mobile app; still writable via `PATCH /users/me/preferences` (not returned on `UserPreferencesResponse`)
@@ -67,7 +71,7 @@ Shared OpenAPI contract for the Task Manager backend and frontend.
 - Add `PUT /history/{date}/note` to create or replace a daily note (1–2000 Unicode code points, non-blank after trim)
 - Add `DELETE /history/{date}/note` to remove a note without changing daily task results (`204` even when absent)
 - Add schemas `HistoryDayStatus`, `HistoryDay`, `HistoryResponse`, `PutHistoryNoteRequest`, and `HistoryNoteResponse`
-- Document day statuses (`in_progress`, `success`, `missed`, `no_tasks`, `unknown`), provisional current-day results, and alignment with existing recurring-task progress and 00:05 local reset rules
+- Document day statuses (`in_progress`, `success`, `missed`, `no_tasks`, `unknown`), provisional current-day results, and alignment with existing recurring-task progress and local reset rules
 
 ## v1.7.1
 
