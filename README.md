@@ -2,6 +2,12 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.14.0
+
+- When a new local calendar day has begun but the recurring-task daily reset has not yet run (cron delay or failure), every recurring-task mutating operation and every history write operation rejects with `409` / `DAILY_RESET_REQUIRED`; clients must reload and retry
+- Mutating: `POST|PATCH|DELETE /recurring-tasks`, `POST /history/yesterday/repair`, `PUT|DELETE /history/{date}/note`
+- Related GETs (`GET /recurring-tasks`, `GET /recurring-tasks/{id}`, `GET /recurring-task-progress`, `GET /history`) always perform a pending manual reset when due, then return the current day state (no error)
+
 ## v1.13.0
 
 - Change recurring-task daily reset from 00:05 to 00:00 local time in the user's configured IANA timezone (`IanaTimezone`, `lastResetAt`, `nextResetAt`, history day finalization)

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.13.0
+  version: 1.14.0
 
 paths:
   /users/me:
@@ -415,7 +415,10 @@ paths:
   /recurring-tasks:
     get:
       summary: Get recurring tasks for the authenticated user
-      description: Returns all recurring tasks owned by the authenticated user.
+      description: >
+        Returns all recurring tasks owned by the authenticated user.
+        If a daily reset is due but has not yet run, the backend always
+        performs a manual reset before returning the current day's state.
       operationId: getRecurringTasks
       security:
         - bearerAuth: [ ]
@@ -478,10 +481,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/DailyResetConflict'
 
   /recurring-tasks/{recurringTaskId}:
     get:
       summary: Get a single recurring task
+      description: >
+        Returns one recurring task owned by the authenticated user
+        (e.g. when opening the edit sheet). If a daily reset is due but has
+        not yet run, the backend always performs a manual reset before
+        returning the current day's state for this task.
       operationId: getRecurringTask
       security:
         - bearerAuth: [ ]
@@ -568,6 +578,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/DailyResetConflict'
 
     delete:
       summary: Delete a recurring task
@@ -595,6 +607,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/DailyResetConflict'
 
   /mastery-levels:
     get:
@@ -622,7 +636,11 @@ paths:
   /recurring-task-progress:
     get:
       summary: Get recurring task progress for the authenticated user
-      description: Returns the user's global recurring-task streak, current mastery level, and highest achievements reached.
+      description: >
+        Returns the user's global recurring-task streak, current mastery level,
+        and highest achievements reached. If a daily reset is due but has not
+        yet run, the backend always performs a manual reset before returning
+        progress.
       operationId: getRecurringTaskProgress
       security:
         - bearerAuth: [ ]
@@ -746,6 +764,9 @@ paths:
         Historical dates retain their original local date after timezone changes.
         Finalized missed days with counted tasks may be repaired only for the
         previous calendar day in the user's timezone via POST /history/yesterday/repair.
+        If a daily reset is due but has not yet run, the backend always
+        performs a manual reset before returning history for the current
+        local day.
         No subscription requirement is added by this contract.
       security:
         - bearerAuth: [ ]
@@ -825,9 +846,11 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: >
-            Yesterday cannot be repaired; code HISTORY_DAY_NOT_REPAIRABLE
-            (e.g. not missed, not finalized, no counted tasks, no recorded
-            yesterday, or before history tracking).
+            Conflict. Either yesterday cannot be repaired
+            (code HISTORY_DAY_NOT_REPAIRABLE: e.g. not missed, not finalized,
+            no counted tasks, no recorded yesterday, or before history tracking),
+            or a daily reset was due and this mutation was rejected
+            (code DAILY_RESET_REQUIRED; clients must reload and retry).
           content:
             application/json:
               schema:
@@ -894,6 +917,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/DailyResetConflict'
         '500':
           description: Internal Server Error
           content:
@@ -927,6 +952,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/DailyResetConflict'
         '500':
           description: Internal Server Error
           content:
@@ -940,6 +967,26 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+  responses:
+    DailyResetConflict:
+      description: >
+        A new local calendar day has begun and the recurring-task daily reset
+        was due but had not yet run (cron delay or failure). Returned by every
+        recurring-task operation that mutates resources
+        (POST /recurring-tasks, PATCH|DELETE /recurring-tasks/{id}), and by
+        history write operations (POST /history/yesterday/repair,
+        PUT|DELETE /history/{date}/note). The backend rejects the mutation
+        without applying the requested change and returns code
+        DAILY_RESET_REQUIRED. Clients must reload via
+        GET /recurring-tasks, GET /recurring-tasks/{id},
+        GET /recurring-task-progress, and GET /history; those GETs always
+        perform the pending manual reset when due and return the current day
+        state. Then retry against that state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DailyResetConflictError'
 
   schemas:
     Language:
@@ -1212,6 +1259,27 @@ components:
               minItems: 1
               items:
                 $ref: '#/components/schemas/AccountDeletionBlockingSubscription'
+
+    DailyResetConflictError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          required: [ statusCode, error, message, code ]
+          properties:
+            statusCode:
+              type: integer
+              enum: [ 409 ]
+            code:
+              type: string
+              enum: [ DAILY_RESET_REQUIRED ]
+            error:
+              type: string
+              example: Conflict
+            message:
+              type: string
+              example: >
+                A new day has started and a daily reset is required.
+                Reload current state and retry.
 
     ErrorResponse:
       type: object
