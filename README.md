@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.15.0
+
+- Raise daily history note limit from 2000 to 10000 Unicode code points (`PutHistoryNoteRequest`, `HistoryNoteResponse`, `HistoryDay.note`, `PUT /history/{date}/note`)
+
 ## v1.14.0
 
 - When a new local calendar day has begun but the recurring-task daily reset has not yet run (cron delay or failure), every recurring-task mutating operation and every history write operation rejects with `409` / `DAILY_RESET_REQUIRED`; clients must reload and retry

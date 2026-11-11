@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.14.0
+  version: 1.15.0
 
 paths:
   /users/me:
@@ -883,7 +883,7 @@ paths:
       description: >
         Stores one note per authenticated user and date.
         Trim leading and trailing whitespace before storage.
-        Reject blank text and text longer than 2000 Unicode code points
+        Reject blank text and text longer than 10000 Unicode code points
         before trimming. Preserve internal whitespace and line breaks.
         Repeating the same request has the same effect.
         Last committed write wins.
@@ -1830,7 +1830,7 @@ components:
         note:
           type: string
           nullable: true
-          maxLength: 2000
+          maxLength: 10000
           example: Heute war ich unterwegs.
         finalizedAt:
           type: string
@@ -1899,7 +1899,7 @@ components:
         note:
           type: string
           minLength: 1
-          maxLength: 2000
+          maxLength: 10000
           pattern: '\S'
           example: Heute war ich unterwegs.
 
@@ -1916,5 +1916,5 @@ components:
         note:
           type: string
           minLength: 1
-          maxLength: 2000
+          maxLength: 10000
           example: Heute war ich unterwegs.
