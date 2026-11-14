@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.15.0
+  version: 1.16.0
 
 paths:
   /users/me:
@@ -105,7 +105,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserPreferencesResponse'
         '400':
-          description: Bad Request (e.g. invalid language or timezone)
+          description: >
+            Bad Request (e.g. invalid language, timezone, or notificationTime)
           content:
             application/json:
               schema:
@@ -1012,6 +1013,8 @@ components:
         - email
         - language
         - timezone
+        - notificationEnabled
+        - notificationTime
         - personalIntroSeenAt
         - mobileOnboardingSeenAt
         - webOnboardingSeenAt
@@ -1034,6 +1037,23 @@ components:
             IANA timezone identifier currently stored for the user.
             Example: Europe/Berlin or America/New_York.
           example: Europe/Berlin
+        notificationEnabled:
+          type: boolean
+          description: >
+            Whether the user wants a global daily reminder to review the
+            Today (Mein Weg) board — independent of per-task reminders.
+            Defaults to true for new users.
+          example: true
+        notificationTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: >
+            Local time of day (24-hour HH:mm) in the user's IANA timezone when
+            the global daily reminder should fire. Always set; defaults to
+            20:00 for new users. Remains stored and editable while
+            notificationEnabled is false so the user can prepare a time and
+            turn the reminder on later.
+          example: '20:00'
         personalIntroSeenAt:
           type: string
           format: date-time
@@ -1085,10 +1105,10 @@ components:
     UpdateUserPreferencesRequest:
       type: object
       description: >
-        Provide at least one of language, timezone, personalIntroSeenAt,
-        mobileOnboardingSeenAt, webOnboardingSeenAt, mobileAppVersion,
-        personalFocusTaskName, personalFocusMotivation, webLastLoginAt,
-        or webLastSeenAt.
+        Provide at least one of language, timezone, notificationEnabled,
+        notificationTime, personalIntroSeenAt, mobileOnboardingSeenAt,
+        webOnboardingSeenAt, mobileAppVersion, personalFocusTaskName,
+        personalFocusMotivation, webLastLoginAt, or webLastSeenAt.
       properties:
         language:
           $ref: '#/components/schemas/Language'
@@ -1100,6 +1120,19 @@ components:
             The backend may use a timezone change to recalculate
             timezone-dependent recurring-task reset timestamps.
           example: America/New_York
+        notificationEnabled:
+          type: boolean
+          description: >
+            Enable or disable the global daily Today-board reminder.
+            May be toggled independently of notificationTime.
+        notificationTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: >
+            Reminder time (HH:mm, user timezone). May be changed while
+            notificationEnabled is false; the stored time is used when the
+            reminder is turned back on.
+          example: '14:45'
         personalIntroSeenAt:
           type: string
           format: date-time
@@ -1152,6 +1185,8 @@ components:
       required:
         - language
         - timezone
+        - notificationEnabled
+        - notificationTime
         - personalIntroSeenAt
         - mobileOnboardingSeenAt
         - webOnboardingSeenAt
@@ -1167,6 +1202,20 @@ components:
             IANA timezone identifier currently stored for the user.
             Example: Europe/Berlin or America/New_York.
           example: Europe/Berlin
+        notificationEnabled:
+          type: boolean
+          description: >
+            Whether the global daily Today-board reminder is enabled.
+            Defaults to true for new users.
+          example: true
+        notificationTime:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: >
+            Local time (HH:mm) for the global daily reminder in the user's
+            IANA timezone. Always set; defaults to 20:00. Editable while
+            the reminder is disabled.
+          example: '20:00'
         personalIntroSeenAt:
           type: string
           format: date-time

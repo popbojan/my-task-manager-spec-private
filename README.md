@@ -2,6 +2,12 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.16.0
+
+- Add global daily Today-board reminder preferences on the user: `notificationEnabled` (default `true`) and `notificationTime` (default `20:00`, `HH:mm` in the user's IANA timezone)
+- Returned on `User` (`GET /users/me`) and `UserPreferencesResponse`; writable via `PATCH /users/me/preferences`
+- Independent of per-recurring-task reminders; time is always set and editable while the switch is off so the user can prepare a time and enable later
+
 ## v1.15.0
 
 - Raise daily history note limit from 2000 to 10000 Unicode code points (`PutHistoryNoteRequest`, `HistoryNoteResponse`, `HistoryDay.note`, `PUT /history/{date}/note`)
