@@ -10,20 +10,19 @@ paths:
       operationId: getCurrentUser
       description: >
         Returns the authenticated user identified by the existing bearer token.
-        Optional device headers may upsert a UserDevice for this user; the
-        deviceId is never placed in the token. When any device header is sent,
-        X-Device-Id and X-Device-Platform are required together; X-App-Version
-        remains optional. Omitting X-App-Version leaves a stored device
-        appVersion unchanged; a newly created device without X-App-Version
-        has appVersion null. X-App-Version updates only UserDevice.appVersion
-        and does not change User.mobileAppVersion. Clients that omit all device
-        headers continue to work; device is then null in the response.
+        This endpoint is read-only for devices: it never creates or updates a
+        UserDevice and never updates lastSeenAt. Optional X-Device-Id and
+        X-Device-Platform identify an already registered device to include in
+        the response; when either is sent, both are required together. If the
+        device exists for this user, device is that UserDevice; otherwise
+        device is null. Clients that omit device headers continue to work;
+        device is then null. Device registration and lastSeenAt updates happen
+        only via PATCH /users/me/preferences.
       security:
         - bearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/XDeviceId'
         - $ref: '#/components/parameters/XDevicePlatform'
-        - $ref: '#/components/parameters/XAppVersion'
       responses:
         '200':
           description: Current authenticated user
@@ -34,7 +33,7 @@ paths:
         '400':
           description: >
             Bad Request (e.g. only one of X-Device-Id / X-Device-Platform sent,
-            or invalid X-Device-Platform / X-App-Version).
+            or invalid X-Device-Platform).
           content:
             application/json:
               schema:
@@ -112,18 +111,32 @@ paths:
       summary: Update current user's preferences
       operationId: updateUserPreferences
       description: >
-        Updates user preferences for the authenticated user identified by the
-        existing bearer token. Optional device headers may upsert a UserDevice
-        for this user; the deviceId is never placed in the token. When any
-        device header is sent, X-Device-Id and X-Device-Platform are required
-        together; X-App-Version remains optional. Omitting X-App-Version leaves
-        a stored device appVersion unchanged; a newly created device without
-        X-App-Version has appVersion null. Body mobileAppVersion updates only
+        Updates user preferences and optionally registers or refreshes a
+        UserDevice for the authenticated user identified by the existing bearer
+        token. Auth and OTP login are unchanged.
+        A non-empty JSON body is required: missing body, null, and {} are
+        rejected. At least one supported preference field must be present;
+        individual fields remain optional so existing clients keep working.
+        Clients should send every preference value they can on app start and
+        when returning to the foreground — at least the currently selected
+        language and device timezone, and on mobile also mobileAppVersion —
+        even when values are unchanged. Login and onboarding timestamps
+        (webLastLoginAt, personalIntroSeenAt, mobileOnboardingSeenAt,
+        webOnboardingSeenAt) are sent only for those events, not on routine
+        foreground sync. webLastSeenAt may be used for activity heartbeats.
+        Device information is conveyed via X-Device-Id, X-Device-Platform, and
+        optional X-App-Version. Body mobileAppVersion continues to update only
         User.mobileAppVersion; X-App-Version updates only UserDevice.appVersion;
-        neither overwrites the other. Existing user notification preference
-        fields and current notification behavior are unchanged by device
-        registration. Clients that omit all device headers continue to work;
-        device is then null in the response.
+        neither overwrites the other. When any device header is sent,
+        X-Device-Id and X-Device-Platform are required together. Omitting
+        X-App-Version leaves a stored device appVersion unchanged; a newly
+        created device without X-App-Version has appVersion null. With complete
+        device headers the backend registers or updates the device and always
+        refreshes internal lastSeenAt (not returned); other stored preference
+        and device fields are updated only when the submitted value actually
+        differs. Preference-only calls without device headers remain supported;
+        device is then null. Existing user notification preference fields and
+        current notification behavior are unchanged by device registration.
       security:
         - bearerAuth: [ ]
       parameters:
@@ -145,9 +158,10 @@ paths:
                 $ref: '#/components/schemas/UserPreferencesResponse'
         '400':
           description: >
-            Bad Request (e.g. invalid language, timezone, or notificationTime;
-            or only one of X-Device-Id / X-Device-Platform sent, or invalid
-            X-Device-Platform / X-App-Version).
+            Bad Request (e.g. missing body, null body, empty object {}, no
+            supported preference field, invalid language, timezone, or
+            notificationTime; only one of X-Device-Id / X-Device-Platform sent;
+            or invalid X-Device-Platform / X-App-Version).
           content:
             application/json:
               schema:
@@ -1019,9 +1033,11 @@ components:
         type: string
         minLength: 1
       description: >
-        Client-generated durable device identifier. When any device header is
-        present, this header and X-Device-Platform must both be sent. Used to
-        create or update the associated UserDevice; not included in auth tokens.
+        Client-generated durable device identifier. When any of X-Device-Id or
+        X-Device-Platform is sent, both must be present. On GET /users/me used
+        only to look up an existing UserDevice. On PATCH /users/me/preferences
+        used to create or update the associated UserDevice and refresh
+        lastSeenAt. Not included in auth tokens.
       example: '6f1d2c3a-8b4e-4f91-9c0a-1e2d3f4a5b6c'
     XDevicePlatform:
       name: X-Device-Platform
@@ -1030,8 +1046,9 @@ components:
       schema:
         $ref: '#/components/schemas/DevicePlatform'
       description: >
-        Client platform. When any device header is present, this header and
-        X-Device-Id must both be sent.
+        Client platform. When any of X-Device-Id or X-Device-Platform is sent,
+        both must be present. Lookup-only on GET /users/me; upsert on
+        PATCH /users/me/preferences.
       example: ANDROID
     XAppVersion:
       name: X-App-Version
@@ -1042,10 +1059,11 @@ components:
         minLength: 1
       description: >
         Optional installed app or web client version for this device
-        (e.g. semver). Updates UserDevice.appVersion only; does not change
-        User.mobileAppVersion. May be omitted even when device id and platform
-        are sent: an existing device keeps its stored appVersion; a new device
-        without this header is created with appVersion null.
+        (e.g. semver). Used only on PATCH /users/me/preferences. Updates
+        UserDevice.appVersion only; does not change User.mobileAppVersion.
+        May be omitted even when device id and platform are sent: an existing
+        device keeps its stored appVersion; a new device without this header
+        is created with appVersion null.
       example: '1.4.0'
 
   responses:
@@ -1097,9 +1115,10 @@ components:
     UserDevice:
       type: object
       description: >
-        Device registered for the authenticated user via optional device
-        headers. Does not expose internal database ids or timestamps.
-        Authentication remains token-based; deviceId is not part of the token.
+        Device registered for the authenticated user via PATCH
+        /users/me/preferences device headers. Does not expose internal database
+        ids or timestamps (including lastSeenAt). Authentication remains
+        token-based; deviceId is not part of the token.
       required:
         - deviceId
         - platform
@@ -1248,16 +1267,38 @@ components:
           allOf:
             - $ref: '#/components/schemas/UserDevice'
           description: >
-            UserDevice created or updated from this request's device headers,
-            or null when no device headers were sent.
+            Existing UserDevice looked up from this request's X-Device-Id and
+            X-Device-Platform, or null when no device headers were sent or no
+            matching device is registered. Never created or updated by
+            GET /users/me.
 
     UpdateUserPreferencesRequest:
       type: object
+      additionalProperties: false
       description: >
-        Provide at least one of language, timezone, notificationEnabled,
-        notificationTime, personalIntroSeenAt, mobileOnboardingSeenAt,
-        webOnboardingSeenAt, mobileAppVersion, personalFocusTaskName,
-        personalFocusMotivation, webLastLoginAt, or webLastSeenAt.
+        Required non-empty JSON object: missing body, null, and {} are
+        rejected. At least one supported preference field must be present
+        (enforced via anyOf); unknown properties are rejected. Each field
+        remains individually optional for existing clients.
+        On app start and when returning to the foreground, clients should send
+        every value they can — typically language and timezone, and on mobile
+        also mobileAppVersion — even when unchanged. The backend updates stored
+        preference values only when they actually differ. Login and onboarding
+        timestamps are sent only for those events. Device registration uses
+        headers (X-Device-Id, X-Device-Platform, X-App-Version), not this body.
+      anyOf:
+        - required: [ language ]
+        - required: [ timezone ]
+        - required: [ notificationEnabled ]
+        - required: [ notificationTime ]
+        - required: [ personalIntroSeenAt ]
+        - required: [ mobileOnboardingSeenAt ]
+        - required: [ webOnboardingSeenAt ]
+        - required: [ mobileAppVersion ]
+        - required: [ personalFocusTaskName ]
+        - required: [ personalFocusMotivation ]
+        - required: [ webLastLoginAt ]
+        - required: [ webLastSeenAt ]
       properties:
         language:
           $ref: '#/components/schemas/Language'
@@ -1265,9 +1306,10 @@ components:
           allOf:
             - $ref: '#/components/schemas/IanaTimezone'
           description: >
-            IANA timezone identifier detected by the client.
-            The backend may use a timezone change to recalculate
-            timezone-dependent recurring-task reset timestamps.
+            IANA timezone identifier detected by the client. Send on app start
+            and foreground return even when unchanged. The backend may use a
+            timezone change to recalculate timezone-dependent recurring-task
+            reset timestamps.
           example: America/New_York
         notificationEnabled:
           type: boolean
@@ -1286,25 +1328,29 @@ components:
           type: string
           format: date-time
           description: >
-            Set when the user finishes or skips the personal intro (typically the current UTC instant).
+            Send only when the user finishes or skips the personal intro
+            (typically the current UTC instant), not on routine preference sync.
         mobileOnboardingSeenAt:
           type: string
           format: date-time
           description: >
-            Set when the user finishes or skips mobile onboarding (typically the current UTC instant).
+            Send only when the user finishes or skips mobile onboarding
+            (typically the current UTC instant), not on routine preference sync.
         webOnboardingSeenAt:
           type: string
           format: date-time
           description: >
-            Set when the user completes web onboarding (typically the current UTC instant).
+            Send only when the user completes web onboarding (typically the
+            current UTC instant), not on routine preference sync.
         mobileAppVersion:
           type: string
           minLength: 1
           description: >
-            Mobile clients should send the installed app version (e.g. semver).
-            Updates User.mobileAppVersion only; returned on User
-            (GET /users/me), not on UserPreferencesResponse. Does not update
-            UserDevice.appVersion (use X-App-Version for that).
+            Mobile clients should send the installed app version (e.g. semver)
+            on app start and foreground return even when unchanged. Updates
+            User.mobileAppVersion only; returned on User (GET /users/me), not
+            on UserPreferencesResponse. Does not update UserDevice.appVersion
+            (use X-App-Version for that).
         personalFocusTaskName:
           type: string
           minLength: 1
@@ -1321,8 +1367,9 @@ components:
           type: string
           format: date-time
           description: >
-            Web clients send on successful login (UTC instant). Write-only for
-            backend web-app tracing; not returned in preference or user responses.
+            Web clients send only on successful login (UTC instant), not on
+            routine preference sync. Write-only for backend web-app tracing;
+            not returned in preference or user responses.
         webLastSeenAt:
           type: string
           format: date-time
@@ -1395,8 +1442,9 @@ components:
           allOf:
             - $ref: '#/components/schemas/UserDevice'
           description: >
-            UserDevice created or updated from this request's device headers,
-            or null when no device headers were sent.
+            UserDevice created or updated from this request's device headers
+            (including lastSeenAt refresh), or null when no device headers
+            were sent.
 
     OTPRequest:
       type: object
