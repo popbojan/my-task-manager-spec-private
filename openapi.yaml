@@ -1,15 +1,29 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.16.0
+  version: 1.17.0
 
 paths:
   /users/me:
     get:
       summary: Get current user
       operationId: getCurrentUser
+      description: >
+        Returns the authenticated user identified by the existing bearer token.
+        Optional device headers may upsert a UserDevice for this user; the
+        deviceId is never placed in the token. When any device header is sent,
+        X-Device-Id and X-Device-Platform are required together; X-App-Version
+        remains optional. Omitting X-App-Version leaves a stored device
+        appVersion unchanged; a newly created device without X-App-Version
+        has appVersion null. X-App-Version updates only UserDevice.appVersion
+        and does not change User.mobileAppVersion. Clients that omit all device
+        headers continue to work; device is then null in the response.
       security:
         - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/XDeviceId'
+        - $ref: '#/components/parameters/XDevicePlatform'
+        - $ref: '#/components/parameters/XAppVersion'
       responses:
         '200':
           description: Current authenticated user
@@ -17,6 +31,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+        '400':
+          description: >
+            Bad Request (e.g. only one of X-Device-Id / X-Device-Platform sent,
+            or invalid X-Device-Platform / X-App-Version).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
@@ -89,8 +111,25 @@ paths:
     patch:
       summary: Update current user's preferences
       operationId: updateUserPreferences
+      description: >
+        Updates user preferences for the authenticated user identified by the
+        existing bearer token. Optional device headers may upsert a UserDevice
+        for this user; the deviceId is never placed in the token. When any
+        device header is sent, X-Device-Id and X-Device-Platform are required
+        together; X-App-Version remains optional. Omitting X-App-Version leaves
+        a stored device appVersion unchanged; a newly created device without
+        X-App-Version has appVersion null. Body mobileAppVersion updates only
+        User.mobileAppVersion; X-App-Version updates only UserDevice.appVersion;
+        neither overwrites the other. Existing user notification preference
+        fields and current notification behavior are unchanged by device
+        registration. Clients that omit all device headers continue to work;
+        device is then null in the response.
       security:
         - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/XDeviceId'
+        - $ref: '#/components/parameters/XDevicePlatform'
+        - $ref: '#/components/parameters/XAppVersion'
       requestBody:
         required: true
         content:
@@ -106,7 +145,9 @@ paths:
                 $ref: '#/components/schemas/UserPreferencesResponse'
         '400':
           description: >
-            Bad Request (e.g. invalid language, timezone, or notificationTime)
+            Bad Request (e.g. invalid language, timezone, or notificationTime;
+            or only one of X-Device-Id / X-Device-Platform sent, or invalid
+            X-Device-Platform / X-App-Version).
           content:
             application/json:
               schema:
@@ -969,6 +1010,44 @@ components:
       scheme: bearer
       bearerFormat: JWT
 
+  parameters:
+    XDeviceId:
+      name: X-Device-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+      description: >
+        Client-generated durable device identifier. When any device header is
+        present, this header and X-Device-Platform must both be sent. Used to
+        create or update the associated UserDevice; not included in auth tokens.
+      example: '6f1d2c3a-8b4e-4f91-9c0a-1e2d3f4a5b6c'
+    XDevicePlatform:
+      name: X-Device-Platform
+      in: header
+      required: false
+      schema:
+        $ref: '#/components/schemas/DevicePlatform'
+      description: >
+        Client platform. When any device header is present, this header and
+        X-Device-Id must both be sent.
+      example: ANDROID
+    XAppVersion:
+      name: X-App-Version
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+      description: >
+        Optional installed app or web client version for this device
+        (e.g. semver). Updates UserDevice.appVersion only; does not change
+        User.mobileAppVersion. May be omitted even when device id and platform
+        are sent: an existing device keeps its stored appVersion; a new device
+        without this header is created with appVersion null.
+      example: '1.4.0'
+
   responses:
     DailyResetConflict:
       description: >
@@ -1006,6 +1085,66 @@ components:
       description: IANA timezone identifier (not a UTC offset such as UTC+2 or GMT-4) used for recurring-task daily resets at 00:00 local time.
       example: Europe/Berlin
 
+    DevicePlatform:
+      type: string
+      enum:
+        - WEB
+        - ANDROID
+        - IOS
+      description: Client platform for a registered UserDevice.
+      example: ANDROID
+
+    UserDevice:
+      type: object
+      description: >
+        Device registered for the authenticated user via optional device
+        headers. Does not expose internal database ids or timestamps.
+        Authentication remains token-based; deviceId is not part of the token.
+      required:
+        - deviceId
+        - platform
+        - appVersion
+        - notificationsEnabled
+        - notificationTime
+      properties:
+        deviceId:
+          type: string
+          minLength: 1
+          description: >
+            Client-generated durable device identifier supplied via X-Device-Id.
+          example: '6f1d2c3a-8b4e-4f91-9c0a-1e2d3f4a5b6c'
+        platform:
+          $ref: '#/components/schemas/DevicePlatform'
+        appVersion:
+          type: string
+          minLength: 1
+          nullable: true
+          description: >
+            Last reported app/web version for this device via X-App-Version.
+            Null when the device was created without a version header.
+            Distinct from User.mobileAppVersion; omitting X-App-Version on
+            later requests does not clear a stored value.
+          example: '1.4.0'
+        notificationsEnabled:
+          type: boolean
+          nullable: true
+          description: >
+            Per-device notification preference (whether reminders are wanted
+            on this device). Not an operating-system permission. Null is
+            reserved for a later inheritance of the global user-level
+            notificationEnabled setting; current notification behavior is
+            unchanged and continues to use the user-level preference.
+          example: true
+        notificationTime:
+          type: string
+          nullable: true
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: >
+            Per-device local reminder time (HH:mm) when known. Null when not
+            yet set. Independent of the user-level notificationTime preference;
+            current notification behavior continues to use the user-level time.
+          example: '20:00'
+
     User:
       type: object
       required:
@@ -1021,6 +1160,7 @@ components:
         - personalFocusTaskName
         - personalFocusMotivation
         - mobileAppVersion
+        - device
       properties:
         id:
           type: string
@@ -1098,9 +1238,18 @@ components:
           minLength: 1
           nullable: true
           description: >
-            Last mobile app version reported by the client via PATCH /users/me/preferences.
-            Null until the mobile app has reported a version at least once.
+            Last mobile app version reported via the mobileAppVersion body
+            field on PATCH /users/me/preferences. Returned on User
+            (GET /users/me). Null until reported at least once. Distinct from
+            UserDevice.appVersion; X-App-Version does not update this field.
           example: '1.2.3'
+        device:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserDevice'
+          description: >
+            UserDevice created or updated from this request's device headers,
+            or null when no device headers were sent.
 
     UpdateUserPreferencesRequest:
       type: object
@@ -1153,7 +1302,9 @@ components:
           minLength: 1
           description: >
             Mobile clients should send the installed app version (e.g. semver).
-            Write-only for backend tracking; not returned in preference or user responses.
+            Updates User.mobileAppVersion only; returned on User
+            (GET /users/me), not on UserPreferencesResponse. Does not update
+            UserDevice.appVersion (use X-App-Version for that).
         personalFocusTaskName:
           type: string
           minLength: 1
@@ -1192,6 +1343,7 @@ components:
         - webOnboardingSeenAt
         - personalFocusTaskName
         - personalFocusMotivation
+        - device
       properties:
         language:
           $ref: '#/components/schemas/Language'
@@ -1238,6 +1390,13 @@ components:
           minLength: 1
           maxLength: 2000
           nullable: true
+        device:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserDevice'
+          description: >
+            UserDevice created or updated from this request's device headers,
+            or null when no device headers were sent.
 
     OTPRequest:
       type: object

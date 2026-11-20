@@ -2,6 +2,16 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.0
+
+- Add optional device headers on `GET /users/me` and `PATCH /users/me/preferences`: `X-Device-Id`, `X-Device-Platform` (`WEB` | `ANDROID` | `IOS`), `X-App-Version`
+- When any device header is sent, `X-Device-Id` and `X-Device-Platform` are required together; `X-App-Version` stays optional; upserts the associated `UserDevice`
+- Omitting `X-App-Version` keeps a stored `UserDevice.appVersion`; a new device without it has `appVersion: null`
+- Body `mobileAppVersion` updates only `User.mobileAppVersion` (returned on `User`, not on `UserPreferencesResponse`); header `X-App-Version` updates only `UserDevice.appVersion`; no cross-overwrite
+- Extend `User` and `UserPreferencesResponse` with nullable `device` (`deviceId`, `platform`, `appVersion`, `notificationsEnabled`, `notificationTime`); `device` is `null` without device headers
+- `UserDevice.notificationsEnabled` is a per-device notification preference (not OS permission); `null` reserved for later inheritance of the global user setting; current notification behavior unchanged
+- Auth, tokens, and OTP login unchanged; `deviceId` is not placed in the token; no internal device ids/timestamps exposed; no reminder outbox
+
 ## v1.16.0
 
 - Add global daily Today-board reminder preferences on the user: `notificationEnabled` (default `true`) and `notificationTime` (default `20:00`, `HH:mm` in the user's IANA timezone)
