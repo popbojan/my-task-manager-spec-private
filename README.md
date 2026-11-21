@@ -2,17 +2,21 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.1
+
+- Restrict device registration/update and internal `lastSeenAt` refresh to `PATCH /users/me/preferences`; `GET /users/me` is read-only device lookup (no upsert, no `lastSeenAt`)
+- Require a non-empty preferences JSON body (reject missing/`null`/`{}`); at least one known preference field via `anyOf`/`required`; unknown keys rejected; individual fields stay optional for existing clients
+- Clients should send all values they can on app start / foreground return (language, timezone, and on mobile `mobileAppVersion`) even when unchanged; login/onboarding timestamps only on those events
+- Other stored preference/device values update only on actual change; preference-only calls without device headers still supported
+- `device` on GET is `null` without device headers or when no matching device is registered
+
 ## v1.17.0
 
-- Add optional device headers: `X-Device-Id`, `X-Device-Platform` (`WEB` | `ANDROID` | `IOS`), and on preferences also `X-App-Version`
-- `GET /users/me` is read-only for devices (lookup existing `UserDevice` via id+platform; no upsert, no `lastSeenAt` update)
-- `PATCH /users/me/preferences` requires a non-empty JSON body (reject missing/`null`/`{}`); at least one known preference field via `anyOf`/`required` (unknown keys rejected); individual fields stay optional for existing clients
-- Clients should send all values they can on app start / foreground return (language, timezone, and on mobile `mobileAppVersion`) even when unchanged; login/onboarding timestamps only on those events
-- Device registration / update and internal `lastSeenAt` refresh only via this PATCH with complete device headers; other stored values update only on actual change; preference-only calls without device headers still supported
-- When any device header is sent, `X-Device-Id` and `X-Device-Platform` are required together; `X-App-Version` stays optional
+- Add optional device headers on `GET /users/me` and `PATCH /users/me/preferences`: `X-Device-Id`, `X-Device-Platform` (`WEB` | `ANDROID` | `IOS`), `X-App-Version`
+- When any device header is sent, `X-Device-Id` and `X-Device-Platform` are required together; `X-App-Version` stays optional; upserts the associated `UserDevice`
 - Omitting `X-App-Version` keeps a stored `UserDevice.appVersion`; a new device without it has `appVersion: null`
 - Body `mobileAppVersion` updates only `User.mobileAppVersion` (returned on `User`, not on `UserPreferencesResponse`); header `X-App-Version` updates only `UserDevice.appVersion`; no cross-overwrite
-- Extend `User` and `UserPreferencesResponse` with nullable `device` (`deviceId`, `platform`, `appVersion`, `notificationsEnabled`, `notificationTime`); `device` is `null` without device headers (or no match on GET)
+- Extend `User` and `UserPreferencesResponse` with nullable `device` (`deviceId`, `platform`, `appVersion`, `notificationsEnabled`, `notificationTime`); `device` is `null` without device headers
 - `UserDevice.notificationsEnabled` is a per-device notification preference (not OS permission); `null` reserved for later inheritance of the global user setting; current notification behavior unchanged
 - Auth, tokens, and OTP login unchanged; `deviceId` is not placed in the token; no internal device ids/timestamps exposed; no reminder outbox
 
