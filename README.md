@@ -2,6 +2,14 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.2
+
+- Add read-only `GET /reminder-command-outbox` for open reminder commands of the authenticated user and required `X-Device-Id` device; does not modify entries
+- Response is an array of `ReminderCommandOutboxItem` (`id`, `userId`, `deviceId`, `reminderType`, `taskId`, `notificationId`, `revision`); empty `[]` when none, or when the device id is unknown/unassigned
+- `reminderType`: `daily_review` (Today reminder, `taskId` null) | `recurring_task` (`taskId` = task id); enforced via schema `oneOf`
+- `revision` is the entry version at fetch time
+- Errors: `400` missing/blank device id, `401` unauthorized, `500` server error
+
 ## v1.17.1
 
 - Restrict device registration/update and internal `lastSeenAt` refresh to `PATCH /users/me/preferences`; `GET /users/me` is read-only device lookup (no upsert, no `lastSeenAt`)
@@ -9,6 +17,7 @@ Shared OpenAPI contract for the Task Manager backend and frontend.
 - Clients should send all values they can on app start / foreground return (language, timezone, and on mobile `mobileAppVersion`) even when unchanged; login/onboarding timestamps only on those events
 - Other stored preference/device values update only on actual change; preference-only calls without device headers still supported
 - `device` on GET is `null` without device headers or when no matching device is registered
+- Align `openapi.yaml` / `package.json` version fields with tag `v1.17.1`
 
 ## v1.17.0
 

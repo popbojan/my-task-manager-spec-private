@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.17.1
+  version: 1.17.2
 
 paths:
   /users/me:
@@ -168,6 +168,58 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reminder-command-outbox:
+    get:
+      summary: List open reminder command outbox entries for the current device
+      operationId: getReminderCommandOutbox
+      description: >
+        Returns open reminder-command outbox entries for the authenticated user
+        and the device identified by X-Device-Id. Without entries, returns [].
+        The request does not modify any entries. An unknown or unassigned
+        X-Device-Id for this user also returns 200 with [].
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/XDeviceIdRequired'
+      responses:
+        '200':
+          description: >
+            Open outbox entries for this user and device. Empty array when none
+            exist, or when X-Device-Id is unknown or not assigned to this user.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReminderCommandOutboxItem'
+              example:
+                - id: outbox-123
+                  userId: user-123
+                  deviceId: device-123
+                  reminderType: recurring_task
+                  taskId: task-123
+                  notificationId: recurring-reminder-task-123
+                  revision: 1
+        '400':
+          description: >
+            Bad Request — missing or blank X-Device-Id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized — missing or invalid bearer authentication.
           content:
             application/json:
               schema:
@@ -1039,6 +1091,18 @@ components:
         used to create or update the associated UserDevice and refresh
         lastSeenAt. Not included in auth tokens.
       example: '6f1d2c3a-8b4e-4f91-9c0a-1e2d3f4a5b6c'
+    XDeviceIdRequired:
+      name: X-Device-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      description: >
+        Client-generated durable device identifier. Required on
+        GET /reminder-command-outbox. Scopes the response to this device;
+        unknown or unassigned values yield an empty list.
+      example: '6f1d2c3a-8b4e-4f91-9c0a-1e2d3f4a5b6c'
     XDevicePlatform:
       name: X-Device-Platform
       in: header
@@ -1111,6 +1175,124 @@ components:
         - IOS
       description: Client platform for a registered UserDevice.
       example: ANDROID
+
+    ReminderType:
+      type: string
+      enum:
+        - daily_review
+        - recurring_task
+      description: >
+        Kind of reminder represented by an outbox entry.
+        daily_review: Today-page reminder; taskId is null.
+        recurring_task: per-task reminder; taskId is the task id.
+      example: recurring_task
+
+    ReminderCommandOutboxItem:
+      description: >
+        Open reminder-command outbox entry for one user and device.
+        reminderType and taskId are validated together via oneOf.
+      oneOf:
+        - $ref: '#/components/schemas/DailyReviewReminderCommandOutboxItem'
+        - $ref: '#/components/schemas/RecurringTaskReminderCommandOutboxItem'
+      discriminator:
+        propertyName: reminderType
+        mapping:
+          daily_review: '#/components/schemas/DailyReviewReminderCommandOutboxItem'
+          recurring_task: '#/components/schemas/RecurringTaskReminderCommandOutboxItem'
+
+    DailyReviewReminderCommandOutboxItem:
+      type: object
+      description: Outbox entry for a Today-page reminder (daily_review).
+      required:
+        - id
+        - userId
+        - deviceId
+        - reminderType
+        - taskId
+        - notificationId
+        - revision
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Outbox entry identifier.
+          example: outbox-456
+        userId:
+          type: string
+          minLength: 1
+          description: Owner user id (same as the authenticated user).
+          example: user-123
+        deviceId:
+          type: string
+          minLength: 1
+          description: Target device id (same as X-Device-Id).
+          example: device-123
+        reminderType:
+          type: string
+          enum: [ daily_review ]
+        taskId:
+          nullable: true
+          enum: [ null ]
+          description: Always null for daily_review.
+          example: null
+        notificationId:
+          type: string
+          minLength: 1
+          description: Local notification identifier for this reminder.
+          example: daily-review-reminder
+        revision:
+          type: integer
+          minimum: 1
+          description: Version of this outbox entry at the time of the response.
+          example: 1
+
+    RecurringTaskReminderCommandOutboxItem:
+      type: object
+      description: Outbox entry for a recurring-task reminder (recurring_task).
+      required:
+        - id
+        - userId
+        - deviceId
+        - reminderType
+        - taskId
+        - notificationId
+        - revision
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Outbox entry identifier.
+          example: outbox-123
+        userId:
+          type: string
+          minLength: 1
+          description: Owner user id (same as the authenticated user).
+          example: user-123
+        deviceId:
+          type: string
+          minLength: 1
+          description: Target device id (same as X-Device-Id).
+          example: device-123
+        reminderType:
+          type: string
+          enum: [ recurring_task ]
+        taskId:
+          type: string
+          minLength: 1
+          description: Id of the recurring task this reminder belongs to.
+          example: task-123
+        notificationId:
+          type: string
+          minLength: 1
+          description: Local notification identifier for this reminder.
+          example: recurring-reminder-task-123
+        revision:
+          type: integer
+          minimum: 1
+          description: Version of this outbox entry at the time of the response.
+          example: 1
 
     UserDevice:
       type: object
