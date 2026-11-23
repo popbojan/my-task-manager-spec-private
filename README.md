@@ -2,6 +2,15 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.3
+
+- `POST /auth/request-otp`: optional `X-Device-Id`, `X-Device-Platform`, `X-App-Version`; id+platform required together; upserts `UserDevice`
+- `PATCH /users/me/preferences`: no device create, no platform change; optional `X-Device-Id` identifies a registered device; optional `X-App-Version` updates that device's `appVersion` only
+- Body `mobileAppVersion` kept for older clients (`User.mobileAppVersion` only); new clients send device version via header; omitted versions do not overwrite stored values
+- Mark `User.mobileAppVersion` as deprecated; prefer `UserDevice.appVersion` via `X-App-Version`
+- Remove `webLastLoginAt` from preferences request (breaking for clients that still send it); login time only on successful OTP login
+- Language, timezone, notifications, onboarding, focus fields, and `webLastSeenAt` activity tracking unchanged
+
 ## v1.17.2
 
 - Add read-only `GET /reminder-command-outbox` for open reminder commands of the authenticated user and required `X-Device-Id` device; does not modify entries
