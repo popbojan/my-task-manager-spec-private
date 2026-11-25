@@ -2,6 +2,12 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.4
+
+- `POST /auth/login-with-otp`: same optional device headers as request-otp (id+platform together); on success verifies user and that device in one transaction, creates missing device, sets `lastLoginAt`; invalid OTP changes nothing
+- `POST /auth/request-otp`: creates/updates user and device; new records unverified; already verified records are not reset
+- Verification flags remain internal (not in API responses); token contents unchanged; clients without device headers still supported
+
 ## v1.17.3
 
 - `POST /auth/request-otp`: optional `X-Device-Id`, `X-Device-Platform`, `X-App-Version`; id+platform required together; upserts `UserDevice`

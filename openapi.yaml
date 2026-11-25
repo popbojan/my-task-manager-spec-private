@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.17.3
+  version: 1.17.4
 
 paths:
   /users/me:
@@ -213,12 +213,14 @@ paths:
       summary: Request a one-time password via email
       operationId: requestOtp
       description: >
-        Sends a one-time password to the given email. Optional device headers
-        register or update a UserDevice for that user: X-Device-Id and
-        X-Device-Platform must both be present when any device header is sent;
-        X-App-Version is optional. Web and mobile are handled the same. 
-        Omitting X-App-Version leaves a stored appVersion unchanged; a new 
-        device without it has appVersion null. No separate device confirmation step.
+        Sends a one-time password to the given email and creates or updates the
+        user. Optional device headers create or update a UserDevice for that
+        user: X-Device-Id and X-Device-Platform must both be present when any
+        device header is sent; X-App-Version is optional. Omitted X-App-Version
+        leaves a stored appVersion unchanged; a new device without it has
+        appVersion null. New user and device records are created unverified;
+        already verified records are not reset. Clients without device headers
+        remain supported.
       parameters:
         - $ref: '#/components/parameters/XDeviceId'
         - $ref: '#/components/parameters/XDevicePlatform'
@@ -259,6 +261,21 @@ paths:
     post:
       summary: Login using an email and the received OTP
       operationId: loginWithOtp
+      description: >
+        Verifies the OTP and issues tokens. Token contents are unchanged.
+        Optional device headers match request-otp: X-Device-Id and
+        X-Device-Platform must both be present when any device header is sent;
+        X-App-Version is optional. On success, user and device updates run in
+        one transaction: the user and the device identified by (userId,
+        deviceId) are marked verified; a missing device is created; other
+        devices are unchanged; lastLoginAt is set. Omitted X-App-Version leaves
+        a stored appVersion unchanged. Invalid OTP performs no registration,
+        update, or verification. Clients without device headers remain
+        supported.
+      parameters:
+        - $ref: '#/components/parameters/XDeviceId'
+        - $ref: '#/components/parameters/XDevicePlatform'
+        - $ref: '#/components/parameters/XAppVersion'
       requestBody:
         required: true
         content:
@@ -277,6 +294,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: >
+            Bad Request (e.g. only one of X-Device-Id / X-Device-Platform sent,
+            or invalid X-Device-Platform / X-App-Version).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Invalid or expired OTP
           content:
@@ -1075,10 +1100,11 @@ components:
         type: string
         minLength: 1
       description: >
-        Client-generated durable device identifier. On POST /auth/request-otp
-        and GET /users/me, when any of X-Device-Id or X-Device-Platform is sent,
-        both must be present. On PATCH /users/me/preferences identifies an
-        already registered device; does not create a device.
+        Client-generated durable device identifier. On POST /auth/request-otp,
+        POST /auth/login-with-otp, and GET /users/me, when any of X-Device-Id or
+        X-Device-Platform is sent, both must be present. On PATCH
+        /users/me/preferences identifies an already registered device; does not
+        create a device.
       example: '6f1d2c3a-8b4e-4f91-9c0a-1e2d3f4a5b6c'
     XDeviceIdRequired:
       name: X-Device-Id
@@ -1099,9 +1125,10 @@ components:
       schema:
         $ref: '#/components/schemas/DevicePlatform'
       description: >
-        Client platform. Used on POST /auth/request-otp (device upsert) and
-        GET /users/me (lookup). When any of X-Device-Id or X-Device-Platform is
-        sent, both must be present. Not used on PATCH /users/me/preferences.
+        Client platform. Used on POST /auth/request-otp, POST
+        /auth/login-with-otp, and GET /users/me. When any of X-Device-Id or
+        X-Device-Platform is sent, both must be present. Not used on PATCH
+        /users/me/preferences.
       example: ANDROID
     XAppVersion:
       name: X-App-Version
@@ -1112,11 +1139,10 @@ components:
         minLength: 1
       description: >
         Optional app or web client version (e.g. semver). Updates only
-        UserDevice.appVersion. On POST /auth/request-otp applies during device
-        upsert. On PATCH /users/me/preferences applies only to an already
-        registered device identified by X-Device-Id. Omitted values do not
-        overwrite a stored appVersion; a newly created device without this
-        header has appVersion null.
+        UserDevice.appVersion. Used on POST /auth/request-otp, POST
+        /auth/login-with-otp, and PATCH /users/me/preferences (existing device
+        only). Omitted values do not overwrite a stored appVersion; a newly
+        created device without this header has appVersion null.
       example: '1.4.0'
 
   responses:
@@ -1286,9 +1312,9 @@ components:
     UserDevice:
       type: object
       description: >
-        Registered device for the user. Created or updated on
-        POST /auth/request-otp with device headers. Does not expose internal ids
-        or timestamps.
+        Registered device for the user. Created or updated via auth device
+        headers. Does not expose internal ids, timestamps, or verification
+        state.
       required:
         - deviceId
         - platform
@@ -1311,7 +1337,7 @@ components:
           description: >
             Device app/web version from X-App-Version. Null when never reported.
             Distinct from User.mobileAppVersion. Omitting X-App-Version does not
-            clear a stored value. (backwards-compatibility)
+            clear a stored value.
           example: '1.4.0'
         notificationsEnabled:
           type: boolean
