@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.17.6
+  version: 1.17.7
 
 paths:
   /users/me:
@@ -50,13 +50,16 @@ paths:
       summary: Permanently delete the current user's account
       operationId: deleteCurrentUser
       description: >
-        Deletes the authenticated user's account and associated application data.
-        Requires explicit user confirmation in the client and recent OTP authentication.
-        Checks all subscription providers against fresh provider data before deletion.
-        Running subscriptions must first be canceled; subscriptions already set to
-        cancel at period end do not block deletion.
-        Does not cancel store subscriptions, refund purchases, or delete the user's
-        Google, Apple, or Stripe account.
+        Deletes the authenticated user's account and associated application data,
+        including all UserDevice rows via cascade. Device headers such as
+        X-Device-Id and X-Device-Platform are ignored: a user may have multiple
+        devices, and deletion removes every related record. Requires explicit
+        user confirmation in the client and recent OTP authentication. Checks
+        all subscription providers against fresh provider data before deletion.
+        Running subscriptions must first be canceled; subscriptions already set
+        to cancel at period end do not block deletion. Does not cancel store
+        subscriptions, refund purchases, or delete the user's Google, Apple, or
+        Stripe account.
       security:
         - bearerAuth: [ ]
       responses:

@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.7
+
+- `DELETE /users/me`: device headers (`X-Device-Id`, `X-Device-Platform`, …) are ignored; cascade deletion removes all user data including every device
+
 ## v1.17.6
 
 - Auth (`request-otp`, `login-with-otp`): optional `X-Device-Manufacturer`, `X-Device-Model`, `X-Device-OS-Version`; omitted headers do not overwrite stored values
