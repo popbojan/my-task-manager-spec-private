@@ -2,6 +2,12 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.6
+
+- Auth (`request-otp`, `login-with-otp`): optional `X-Device-Manufacturer`, `X-Device-Model`, `X-Device-OS-Version`; omitted headers do not overwrite stored values
+- `PATCH /users/me/preferences`: supports `X-Device-OS-Version` (with `X-Device-Id`) for existing devices; OS-version change may trigger a patch with required preference body field
+- `UserDevice`: add nullable `manufacturer`, `model`, `osVersion`
+
 ## v1.17.5
 
 - `PATCH /users/me/preferences`: no required call on every app start or foreground return; clients patch only when language, timezone, or app version changed, or on explicit profile/notification changes; unchanged values may still be sent

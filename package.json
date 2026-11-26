@@ -1,6 +1,6 @@
 {
   "name": "@popbojan/task-manager-contract",
-  "version": "1.17.5",
+  "version": "1.17.6",
   "main": "openapi.yaml",
   "files": ["openapi.yaml"]
 }
