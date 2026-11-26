@@ -2,6 +2,10 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.5
+
+- `PATCH /users/me/preferences`: no required call on every app start or foreground return; clients patch only when language, timezone, or app version changed, or on explicit profile/notification changes; unchanged values may still be sent
+
 ## v1.17.4
 
 - `POST /auth/login-with-otp`: same optional device headers as request-otp (id+platform together); on success verifies user and that device in one transaction, creates missing device, sets `lastLoginAt`; invalid OTP changes nothing

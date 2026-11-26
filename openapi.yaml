@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.17.4
+  version: 1.17.5
 
 paths:
   /users/me:
@@ -114,8 +114,13 @@ paths:
         registered device (e.g. for device notification settings). Optional
         X-App-Version updates that device's appVersion only when the device
         already exists; omitted version leaves the stored value unchanged.
-        Body mobileAppVersion updates only User.mobileAppVersion (backwards-compatibility). 
-        Preference values are updated only when they differ from stored values.
+        Body mobileAppVersion updates only User.mobileAppVersion. Clients check
+        language, timezone, and app version for changes and call this endpoint
+        only when a change is detected; there is no required sync on every app
+        start or foreground return. Explicit profile changes, including
+        notification settings, are saved immediately. Unchanged values may
+        still be sent. Stored preference values are updated only when they
+        differ from submitted values.
       security:
         - bearerAuth: [ ]
       parameters:
@@ -1468,8 +1473,10 @@ components:
         Required non-empty JSON object with at least one supported preference
         field (anyOf). Unknown properties are rejected. Clients that previously
         sent webLastLoginAt must stop; login time is set only on successful OTP
-        login. Send language and timezone on app start / foreground return when
-        available. New clients report device version via X-App-Version; body
+        login. Call when language, timezone, or app version changed, or when
+        the user explicitly changes preferences (including notifications).
+        Unchanged values may be included; regular start/foreground sync is not
+        required. New clients report device version via X-App-Version; body
         mobileAppVersion remains for older clients and updates only
         User.mobileAppVersion.
       anyOf:
