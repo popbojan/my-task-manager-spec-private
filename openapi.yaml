@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.17.8
+  version: 1.17.9
 
 paths:
   /users/me:
@@ -232,8 +232,10 @@ paths:
         X-Device-Browser-Version are optional. Omitted headers leave stored
         device fields unchanged; new devices without optional fields store them
         as null. New user and device records are created unverified; already
-        verified records are not reset. Clients without device headers remain
-        supported.
+        verified records are not reset. If (userId, deviceId) already exists
+        with a different platform, the request fails with 409
+        DEVICE_PLATFORM_MISMATCH and applies no changes. Clients without
+        device headers remain supported.
       parameters:
         - $ref: '#/components/parameters/XDeviceId'
         - $ref: '#/components/parameters/XDevicePlatform'
@@ -268,6 +270,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/DevicePlatformMismatch'
         '500':
           description: Internal Server Error
           content:
@@ -289,9 +293,11 @@ paths:
         updates run in one transaction: the user and the device identified by
         (userId, deviceId) are marked verified; a missing device is created;
         other devices are unchanged; lastLoginAt is set. Omitted headers leave
-        stored device fields unchanged. Invalid OTP performs no registration,
-        update, or verification. Clients without device headers remain
-        supported.
+        stored device fields unchanged. If (userId, deviceId) already exists
+        with a different platform, the request fails with 409
+        DEVICE_PLATFORM_MISMATCH and applies no changes. Invalid OTP performs
+        no registration, update, or verification. Clients without device
+        headers remain supported.
       parameters:
         - $ref: '#/components/parameters/XDeviceId'
         - $ref: '#/components/parameters/XDevicePlatform'
@@ -333,6 +339,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/DevicePlatformMismatch'
         '500':
           description: Internal Server Error
           content:
@@ -1240,6 +1248,17 @@ components:
       example: '131.0.6778.86'
 
   responses:
+    DevicePlatformMismatch:
+      description: >
+        A UserDevice already exists for (userId, deviceId) with a different
+        platform. Code DEVICE_PLATFORM_MISMATCH. The stored platform is
+        unchanged; no user or device updates from this request are applied.
+        Clients generate and persist a new installation UUID, then retry the
+        same request once with that new X-Device-Id. Do not retry indefinitely.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DevicePlatformMismatchError'
     DailyResetConflict:
       description: >
         A new local calendar day has begun and the recurring-task daily reset
@@ -1848,6 +1867,27 @@ components:
               example: >
                 A new day has started and a daily reset is required.
                 Reload current state and retry.
+
+    DevicePlatformMismatchError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          required: [ statusCode, error, message, code ]
+          properties:
+            statusCode:
+              type: integer
+              enum: [ 409 ]
+            code:
+              type: string
+              enum: [ DEVICE_PLATFORM_MISMATCH ]
+            error:
+              type: string
+              example: Conflict
+            message:
+              type: string
+              example: >
+                Device platform does not match the stored device.
+                Generate a new installation id and retry once.
 
     ErrorResponse:
       type: object

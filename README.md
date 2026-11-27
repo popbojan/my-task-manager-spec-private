@@ -2,6 +2,11 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.9
+
+- `POST /auth/request-otp` and `POST /auth/login-with-otp`: `409` / `DEVICE_PLATFORM_MISMATCH` when `(userId, deviceId)` already exists with a different platform; no user/device changes applied
+- Client: generate and store a new installation UUID, retry the same request once with the new device id
+
 ## v1.17.8
 
 - Auth (`request-otp`, `login-with-otp`): optional `X-Device-Browser-Name`, `X-Device-Browser-Version`; omitted headers do not overwrite stored values
