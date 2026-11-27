@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.17.7
+  version: 1.17.8
 
 paths:
   /users/me:
@@ -115,21 +115,23 @@ paths:
         (missing body, null, and {} are rejected). Does not create devices and
         does not change platform. Optional X-Device-Id identifies an already
         registered device. Optional X-App-Version updates that device's
-        appVersion; optional X-Device-OS-Version updates osVersion. Omitted
-        headers leave stored values unchanged. Body mobileAppVersion updates
-        only User.mobileAppVersion. Clients call this endpoint when language,
-        timezone, app version, or OS version changed, or on explicit profile
-        changes including notification settings. An OS-version change is sent
-        with X-Device-Id and X-Device-OS-Version plus a required preference
-        body field (e.g. language or timezone). Unchanged values may still be
-        sent. Stored preference values are updated only when they differ from
-        submitted values.
+        appVersion; optional X-Device-OS-Version updates osVersion; optional
+        X-Device-Browser-Version updates browserVersion. Omitted headers leave
+        stored values unchanged. Body mobileAppVersion updates only
+        User.mobileAppVersion. Clients call this endpoint when language,
+        timezone, app version, OS version, or browser version changed, or on
+        explicit profile changes including notification settings. An OS- or
+        browser-version change is sent with X-Device-Id and the corresponding
+        version header plus a required preference body field (e.g. language or
+        timezone). Unchanged values may still be sent. Stored preference values
+        are updated only when they differ from submitted values.
       security:
         - bearerAuth: [ ]
       parameters:
         - $ref: '#/components/parameters/XDeviceId'
         - $ref: '#/components/parameters/XAppVersion'
         - $ref: '#/components/parameters/XDeviceOsVersion'
+        - $ref: '#/components/parameters/XDeviceBrowserVersion'
       requestBody:
         required: true
         content:
@@ -226,11 +228,12 @@ paths:
         user. Optional device headers create or update a UserDevice for that
         user: X-Device-Id and X-Device-Platform must both be present when any
         device header is sent. X-App-Version, X-Device-Manufacturer,
-        X-Device-Model, and X-Device-OS-Version are optional. Omitted headers
-        leave stored device fields unchanged; new devices without optional
-        fields store them as null. New user and device records are created
-        unverified; already verified records are not reset. Clients without
-        device headers remain supported.
+        X-Device-Model, X-Device-OS-Version, X-Device-Browser-Name, and
+        X-Device-Browser-Version are optional. Omitted headers leave stored
+        device fields unchanged; new devices without optional fields store them
+        as null. New user and device records are created unverified; already
+        verified records are not reset. Clients without device headers remain
+        supported.
       parameters:
         - $ref: '#/components/parameters/XDeviceId'
         - $ref: '#/components/parameters/XDevicePlatform'
@@ -238,6 +241,8 @@ paths:
         - $ref: '#/components/parameters/XDeviceManufacturer'
         - $ref: '#/components/parameters/XDeviceModel'
         - $ref: '#/components/parameters/XDeviceOsVersion'
+        - $ref: '#/components/parameters/XDeviceBrowserName'
+        - $ref: '#/components/parameters/XDeviceBrowserVersion'
       requestBody:
         required: true
         content:
@@ -278,13 +283,15 @@ paths:
         Verifies the OTP and issues tokens. Token contents are unchanged.
         Optional device headers match request-otp: X-Device-Id and
         X-Device-Platform must both be present when any device header is sent;
-        X-App-Version, X-Device-Manufacturer, X-Device-Model, and
-        X-Device-OS-Version are optional. On success, user and device updates
-        run in one transaction: the user and the device identified by (userId,
-        deviceId) are marked verified; a missing device is created; other
-        devices are unchanged; lastLoginAt is set. Omitted headers leave stored
-        device fields unchanged. Invalid OTP performs no registration, update,
-        or verification. Clients without device headers remain supported.
+        X-App-Version, X-Device-Manufacturer, X-Device-Model,
+        X-Device-OS-Version, X-Device-Browser-Name, and
+        X-Device-Browser-Version are optional. On success, user and device
+        updates run in one transaction: the user and the device identified by
+        (userId, deviceId) are marked verified; a missing device is created;
+        other devices are unchanged; lastLoginAt is set. Omitted headers leave
+        stored device fields unchanged. Invalid OTP performs no registration,
+        update, or verification. Clients without device headers remain
+        supported.
       parameters:
         - $ref: '#/components/parameters/XDeviceId'
         - $ref: '#/components/parameters/XDevicePlatform'
@@ -292,6 +299,8 @@ paths:
         - $ref: '#/components/parameters/XDeviceManufacturer'
         - $ref: '#/components/parameters/XDeviceModel'
         - $ref: '#/components/parameters/XDeviceOsVersion'
+        - $ref: '#/components/parameters/XDeviceBrowserName'
+        - $ref: '#/components/parameters/XDeviceBrowserVersion'
       requestBody:
         required: true
         content:
@@ -1201,6 +1210,34 @@ components:
         Omitted values do not overwrite a stored osVersion; a newly created
         device without this header has osVersion null.
       example: '17.4'
+    XDeviceBrowserName:
+      name: X-Device-Browser-Name
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+      description: >
+        Optional browser name. Updates UserDevice.browserName on
+        POST /auth/request-otp and POST /auth/login-with-otp. Not used on
+        PATCH /users/me/preferences. Omitted values do not overwrite a stored
+        browserName; a newly created device without this header has
+        browserName null.
+      example: Chrome
+    XDeviceBrowserVersion:
+      name: X-Device-Browser-Version
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+      description: >
+        Optional browser version. Updates UserDevice.browserVersion on
+        POST /auth/request-otp, POST /auth/login-with-otp, and PATCH
+        /users/me/preferences (existing device identified by X-Device-Id).
+        Omitted values do not overwrite a stored browserVersion; a newly
+        created device without this header has browserVersion null.
+      example: '131.0.6778.86'
 
   responses:
     DailyResetConflict:
@@ -1379,6 +1416,8 @@ components:
         - manufacturer
         - model
         - osVersion
+        - browserName
+        - browserVersion
         - notificationsEnabled
         - notificationTime
       properties:
@@ -1423,6 +1462,22 @@ components:
             OS version from X-Device-OS-Version. Null when never reported.
             Omitting the header does not clear a stored value.
           example: '17.4'
+        browserName:
+          type: string
+          minLength: 1
+          nullable: true
+          description: >
+            Browser name from X-Device-Browser-Name. Null when never reported.
+            Omitting the header does not clear a stored value.
+          example: Chrome
+        browserVersion:
+          type: string
+          minLength: 1
+          nullable: true
+          description: >
+            Browser version from X-Device-Browser-Version. Null when never
+            reported. Omitting the header does not clear a stored value.
+          example: '131.0.6778.86'
         notificationsEnabled:
           type: boolean
           nullable: true
@@ -1552,14 +1607,15 @@ components:
         Required non-empty JSON object with at least one supported preference
         field (anyOf). Unknown properties are rejected. Clients that previously
         sent webLastLoginAt must stop; login time is set only on successful OTP
-        login. Call when language, timezone, app version, or OS version
-        changed, or when the user explicitly changes preferences (including
-        notifications). For an OS-version change, send X-Device-Id and
-        X-Device-OS-Version with at least one preference field in the body
-        (e.g. language or timezone). Unchanged values may be included; regular
-        start/foreground sync is not required. New clients report device
-        version via X-App-Version; body mobileAppVersion remains for older
-        clients and updates only User.mobileAppVersion.
+        login. Call when language, timezone, app version, OS version, or
+        browser version changed, or when the user explicitly changes
+        preferences (including notifications). For an OS- or browser-version
+        change, send X-Device-Id and the corresponding version header with at
+        least one preference field in the body (e.g. language or timezone).
+        Unchanged values may be included; regular start/foreground sync is not
+        required. New clients report device version via X-App-Version; body
+        mobileAppVersion remains for older clients and updates only
+        User.mobileAppVersion.
       anyOf:
         - required: [ language ]
         - required: [ timezone ]

@@ -2,6 +2,12 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.8
+
+- Auth (`request-otp`, `login-with-otp`): optional `X-Device-Browser-Name`, `X-Device-Browser-Version`; omitted headers do not overwrite stored values
+- `PATCH /users/me/preferences`: supports `X-Device-Browser-Version` (with `X-Device-Id`) for existing devices; required preference body unchanged
+- `UserDevice`: add nullable `browserName`, `browserVersion`
+
 ## v1.17.7
 
 - `DELETE /users/me`: device headers (`X-Device-Id`, `X-Device-Platform`, …) are ignored; cascade deletion removes all user data including every device
