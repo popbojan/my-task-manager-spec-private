@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.17.9
+  version: 1.17.10
 
 paths:
   /users/me:
@@ -225,17 +225,18 @@ paths:
       operationId: requestOtp
       description: >
         Sends a one-time password to the given email and creates or updates the
-        user. Optional device headers create or update a UserDevice for that
-        user: X-Device-Id and X-Device-Platform must both be present when any
-        device header is sent. X-App-Version, X-Device-Manufacturer,
-        X-Device-Model, X-Device-OS-Version, X-Device-Browser-Name, and
-        X-Device-Browser-Version are optional. Omitted headers leave stored
-        device fields unchanged; new devices without optional fields store them
-        as null. New user and device records are created unverified; already
-        verified records are not reset. If (userId, deviceId) already exists
-        with a different platform, the request fails with 409
-        DEVICE_PLATFORM_MISMATCH and applies no changes. Clients without
-        device headers remain supported.
+        user. Calls without device headers remain supported. When any device
+        header is sent, X-Device-Id and X-Device-Platform are required; for
+        ANDROID or IOS, X-Device-Model is also required (400 if missing). For
+        WEB, model remains optional. X-App-Version, X-Device-Manufacturer,
+        X-Device-OS-Version, X-Device-Browser-Name, and X-Device-Browser-Version
+        are optional. Omitted headers leave stored fields unchanged; missing
+        optional fields on create are null. A previously unknown model may be
+        set. New user and device records are created unverified; already
+        verified records are not reset. Conflicts: 409 DEVICE_PLATFORM_MISMATCH
+        if (userId, deviceId) exists with a different platform; 409
+        DEVICE_MODEL_MISMATCH if both stored and submitted model are present
+        and differ. On conflict, no user or device changes are applied.
       parameters:
         - $ref: '#/components/parameters/XDeviceId'
         - $ref: '#/components/parameters/XDevicePlatform'
@@ -264,14 +265,14 @@ paths:
                     example: "OTP sent to your email"
         '400':
           description: >
-            Bad Request (e.g. invalid email format; only one of X-Device-Id /
-            X-Device-Platform sent; or invalid X-Device-Platform / X-App-Version).
+            Bad Request (e.g. invalid email format; incomplete device headers;
+            ANDROID/IOS without X-Device-Model; or invalid platform / version).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          $ref: '#/components/responses/DevicePlatformMismatch'
+          $ref: '#/components/responses/AuthDeviceConflict'
         '500':
           description: Internal Server Error
           content:
@@ -285,19 +286,15 @@ paths:
       operationId: loginWithOtp
       description: >
         Verifies the OTP and issues tokens. Token contents are unchanged.
-        Optional device headers match request-otp: X-Device-Id and
-        X-Device-Platform must both be present when any device header is sent;
-        X-App-Version, X-Device-Manufacturer, X-Device-Model,
-        X-Device-OS-Version, X-Device-Browser-Name, and
-        X-Device-Browser-Version are optional. On success, user and device
+        Device-header rules match request-otp. On success, user and device
         updates run in one transaction: the user and the device identified by
         (userId, deviceId) are marked verified; a missing device is created;
         other devices are unchanged; lastLoginAt is set. Omitted headers leave
-        stored device fields unchanged. If (userId, deviceId) already exists
-        with a different platform, the request fails with 409
-        DEVICE_PLATFORM_MISMATCH and applies no changes. Invalid OTP performs
-        no registration, update, or verification. Clients without device
-        headers remain supported.
+        stored fields unchanged; a previously unknown model may be set.
+        Conflicts: 409 DEVICE_PLATFORM_MISMATCH or DEVICE_MODEL_MISMATCH (same
+        rules as request-otp); no user or device changes; a valid OTP is not
+        consumed. Invalid OTP performs no registration, update, or
+        verification. Clients without device headers remain supported.
       parameters:
         - $ref: '#/components/parameters/XDeviceId'
         - $ref: '#/components/parameters/XDevicePlatform'
@@ -327,8 +324,8 @@ paths:
                 $ref: '#/components/schemas/LoginResponse'
         '400':
           description: >
-            Bad Request (e.g. only one of X-Device-Id / X-Device-Platform sent,
-            or invalid X-Device-Platform / X-App-Version).
+            Bad Request (e.g. incomplete device headers; ANDROID/IOS without
+            X-Device-Model; or invalid platform / version).
           content:
             application/json:
               schema:
@@ -340,7 +337,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          $ref: '#/components/responses/DevicePlatformMismatch'
+          $ref: '#/components/responses/AuthDeviceConflict'
         '500':
           description: Internal Server Error
           content:
@@ -1133,11 +1130,12 @@ components:
         type: string
         minLength: 1
       description: >
-        Client-generated durable device identifier. On POST /auth/request-otp,
-        POST /auth/login-with-otp, and GET /users/me, when any of X-Device-Id or
-        X-Device-Platform is sent, both must be present. On PATCH
-        /users/me/preferences identifies an already registered device; does not
-        create a device.
+        Client-generated durable device identifier. On POST /auth/request-otp
+        and POST /auth/login-with-otp, required with X-Device-Platform whenever
+        any device header is sent; for ANDROID or IOS, X-Device-Model is also
+        required. On GET /users/me, when any of X-Device-Id or X-Device-Platform
+        is sent, both must be present. On PATCH /users/me/preferences identifies
+        an already registered device; does not create a device.
       example: '6f1d2c3a-8b4e-4f91-9c0a-1e2d3f4a5b6c'
     XDeviceIdRequired:
       name: X-Device-Id
@@ -1159,8 +1157,9 @@ components:
         $ref: '#/components/schemas/DevicePlatform'
       description: >
         Client platform. Used on POST /auth/request-otp, POST
-        /auth/login-with-otp, and GET /users/me. When any of X-Device-Id or
-        X-Device-Platform is sent, both must be present. Not used on PATCH
+        /auth/login-with-otp, and GET /users/me. Required with X-Device-Id
+        whenever any device header is sent on the OTP endpoints; for ANDROID or
+        IOS, X-Device-Model is also required. Not used on PATCH
         /users/me/preferences.
       example: ANDROID
     XAppVersion:
@@ -1199,10 +1198,12 @@ components:
         type: string
         minLength: 1
       description: >
-        Optional device model. Updates UserDevice.model on
-        POST /auth/request-otp and POST /auth/login-with-otp. Not used on
-        PATCH /users/me/preferences. Omitted values do not overwrite a stored
-        model; a newly created device without this header has model null.
+        Device model. Required with X-Device-Id and X-Device-Platform when
+        device headers are sent for ANDROID or IOS on POST /auth/request-otp
+        and POST /auth/login-with-otp. Optional for WEB. Not used on PATCH
+        /users/me/preferences. Omitted values do not overwrite a stored model;
+        a newly created device without this header has model null. A previously
+        unknown stored model may be set later.
       example: iPhone 15
     XDeviceOsVersion:
       name: X-Device-OS-Version
@@ -1248,17 +1249,21 @@ components:
       example: '131.0.6778.86'
 
   responses:
-    DevicePlatformMismatch:
+    AuthDeviceConflict:
       description: >
-        A UserDevice already exists for (userId, deviceId) with a different
-        platform. Code DEVICE_PLATFORM_MISMATCH. The stored platform is
-        unchanged; no user or device updates from this request are applied.
-        Clients generate and persist a new installation UUID, then retry the
-        same request once with that new X-Device-Id. Do not retry indefinitely.
+        Device conflict for (userId, deviceId). DEVICE_PLATFORM_MISMATCH when
+        the stored platform differs. DEVICE_MODEL_MISMATCH when both stored and
+        submitted model are present and differ; missing model on either side
+        does not conflict. No user or device changes are applied; on login a
+        valid OTP is not consumed. Clients generate and persist a new
+        installation UUID, then retry the same request once with that new
+        X-Device-Id. Do not retry indefinitely.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/DevicePlatformMismatchError'
+            oneOf:
+              - $ref: '#/components/schemas/DevicePlatformMismatchError'
+              - $ref: '#/components/schemas/DeviceModelMismatchError'
     DailyResetConflict:
       description: >
         A new local calendar day has begun and the recurring-task daily reset
@@ -1887,6 +1892,27 @@ components:
               type: string
               example: >
                 Device platform does not match the stored device.
+                Generate a new installation id and retry once.
+
+    DeviceModelMismatchError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          required: [ statusCode, error, message, code ]
+          properties:
+            statusCode:
+              type: integer
+              enum: [ 409 ]
+            code:
+              type: string
+              enum: [ DEVICE_MODEL_MISMATCH ]
+            error:
+              type: string
+              example: Conflict
+            message:
+              type: string
+              example: >
+                Device model does not match the stored device.
                 Generate a new installation id and retry once.
 
     ErrorResponse:

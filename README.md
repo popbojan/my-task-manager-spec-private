@@ -2,6 +2,12 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.10
+
+- Auth OTP endpoints: `409` / `DEVICE_MODEL_MISMATCH` when both stored and submitted model are present and differ; missing model does not conflict; unknown stored model may be filled; no user/device changes; login does not consume OTP
+- ANDROID/IOS with device headers require `X-Device-Id`, `X-Device-Platform`, and `X-Device-Model` (`400` if incomplete); WEB model stays optional; no device headers still allowed
+- Client on model/platform conflict: new installation UUID, persist, retry once
+
 ## v1.17.9
 
 - `POST /auth/request-otp` and `POST /auth/login-with-otp`: `409` / `DEVICE_PLATFORM_MISMATCH` when `(userId, deviceId)` already exists with a different platform; no user/device changes applied
