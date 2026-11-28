@@ -2,6 +2,12 @@
 
 Shared OpenAPI contract for the Task Manager backend and frontend.
 
+## v1.17.11
+
+- Auth OTP endpoints: optional `X-Device-OS-Name`; `UserDevice` adds nullable `osName`
+- WEB may send manufacturer, model, OS name, OS version, browser name, and browser version together (all optional)
+- Preferences still update only app version, OS version, and browser version for an existing device; conflicts and required body unchanged
+
 ## v1.17.10
 
 - Auth OTP endpoints: `409` / `DEVICE_MODEL_MISMATCH` when both stored and submitted model are present and differ; missing model does not conflict; unknown stored model may be filled; no user/device changes; login does not consume OTP

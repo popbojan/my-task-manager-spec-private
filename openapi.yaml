@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Task Manager API
-  version: 1.17.10
+  version: 1.17.11
 
 paths:
   /users/me:
@@ -114,9 +114,10 @@ paths:
         non-empty JSON body with at least one supported preference field
         (missing body, null, and {} are rejected). Does not create devices and
         does not change platform. Optional X-Device-Id identifies an already
-        registered device. Optional X-App-Version updates that device's
-        appVersion; optional X-Device-OS-Version updates osVersion; optional
-        X-Device-Browser-Version updates browserVersion. Omitted headers leave
+        registered device. Of device metadata, only X-App-Version,
+        X-Device-OS-Version, and X-Device-Browser-Version may update that
+        device (appVersion, osVersion, browserVersion). Manufacturer, model,
+        OS name, and browser name are not updated here. Omitted headers leave
         stored values unchanged. Body mobileAppVersion updates only
         User.mobileAppVersion. Clients call this endpoint when language,
         timezone, app version, OS version, or browser version changed, or on
@@ -228,21 +229,25 @@ paths:
         user. Calls without device headers remain supported. When any device
         header is sent, X-Device-Id and X-Device-Platform are required; for
         ANDROID or IOS, X-Device-Model is also required (400 if missing). For
-        WEB, model remains optional. X-App-Version, X-Device-Manufacturer,
-        X-Device-OS-Version, X-Device-Browser-Name, and X-Device-Browser-Version
-        are optional. Omitted headers leave stored fields unchanged; missing
-        optional fields on create are null. A previously unknown model may be
-        set. New user and device records are created unverified; already
-        verified records are not reset. Conflicts: 409 DEVICE_PLATFORM_MISMATCH
-        if (userId, deviceId) exists with a different platform; 409
-        DEVICE_MODEL_MISMATCH if both stored and submitted model are present
-        and differ. On conflict, no user or device changes are applied.
+        WEB, manufacturer, model, OS name, OS version, browser name, and
+        browser version may all be sent together and remain optional.
+        X-App-Version, X-Device-Manufacturer, X-Device-Model (WEB),
+        X-Device-OS-Name, X-Device-OS-Version, X-Device-Browser-Name, and
+        X-Device-Browser-Version are optional. Omitted headers leave stored
+        fields unchanged; missing optional fields on create are null. A
+        previously unknown model may be set. New user and device records are
+        created unverified; already verified records are not reset. Conflicts:
+        409 DEVICE_PLATFORM_MISMATCH if (userId, deviceId) exists with a
+        different platform; 409 DEVICE_MODEL_MISMATCH if both stored and
+        submitted model are present and differ. On conflict, no user or device
+        changes are applied.
       parameters:
         - $ref: '#/components/parameters/XDeviceId'
         - $ref: '#/components/parameters/XDevicePlatform'
         - $ref: '#/components/parameters/XAppVersion'
         - $ref: '#/components/parameters/XDeviceManufacturer'
         - $ref: '#/components/parameters/XDeviceModel'
+        - $ref: '#/components/parameters/XDeviceOsName'
         - $ref: '#/components/parameters/XDeviceOsVersion'
         - $ref: '#/components/parameters/XDeviceBrowserName'
         - $ref: '#/components/parameters/XDeviceBrowserVersion'
@@ -301,6 +306,7 @@ paths:
         - $ref: '#/components/parameters/XAppVersion'
         - $ref: '#/components/parameters/XDeviceManufacturer'
         - $ref: '#/components/parameters/XDeviceModel'
+        - $ref: '#/components/parameters/XDeviceOsName'
         - $ref: '#/components/parameters/XDeviceOsVersion'
         - $ref: '#/components/parameters/XDeviceBrowserName'
         - $ref: '#/components/parameters/XDeviceBrowserVersion'
@@ -1185,10 +1191,10 @@ components:
         minLength: 1
       description: >
         Optional device manufacturer. Updates UserDevice.manufacturer on
-        POST /auth/request-otp and POST /auth/login-with-otp. Not used on
-        PATCH /users/me/preferences. Omitted values do not overwrite a stored
-        manufacturer; a newly created device without this header has
-        manufacturer null.
+        POST /auth/request-otp and POST /auth/login-with-otp. Allowed together
+        with other WEB device metadata. Not used on PATCH /users/me/preferences.
+        Omitted values do not overwrite a stored manufacturer; a newly created
+        device without this header has manufacturer null.
       example: Apple
     XDeviceModel:
       name: X-Device-Model
@@ -1200,11 +1206,26 @@ components:
       description: >
         Device model. Required with X-Device-Id and X-Device-Platform when
         device headers are sent for ANDROID or IOS on POST /auth/request-otp
-        and POST /auth/login-with-otp. Optional for WEB. Not used on PATCH
-        /users/me/preferences. Omitted values do not overwrite a stored model;
-        a newly created device without this header has model null. A previously
-        unknown stored model may be set later.
+        and POST /auth/login-with-otp. Optional for WEB and allowed together
+        with other WEB device metadata. Not used on PATCH /users/me/preferences.
+        Omitted values do not overwrite a stored model; a newly created device
+        without this header has model null. A previously unknown stored model
+        may be set later.
       example: iPhone 15
+    XDeviceOsName:
+      name: X-Device-OS-Name
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+      description: >
+        Optional OS name. Updates UserDevice.osName on POST /auth/request-otp
+        and POST /auth/login-with-otp only. Allowed for WEB, ANDROID and IOS.
+        Not used on PATCH /users/me/preferences. Omitted values do not
+        overwrite a stored osName; a newly created device without this header
+        has osName null.
+      example: iOS
     XDeviceOsVersion:
       name: X-Device-OS-Version
       in: header
@@ -1216,8 +1237,9 @@ components:
         Optional OS version. Updates UserDevice.osVersion on
         POST /auth/request-otp, POST /auth/login-with-otp, and PATCH
         /users/me/preferences (existing device identified by X-Device-Id).
-        Omitted values do not overwrite a stored osVersion; a newly created
-        device without this header has osVersion null.
+        Allowed together with other WEB device metadata on auth. Omitted values
+        do not overwrite a stored osVersion; a newly created device without
+        this header has osVersion null.
       example: '17.4'
     XDeviceBrowserName:
       name: X-Device-Browser-Name
@@ -1228,10 +1250,10 @@ components:
         minLength: 1
       description: >
         Optional browser name. Updates UserDevice.browserName on
-        POST /auth/request-otp and POST /auth/login-with-otp. Not used on
-        PATCH /users/me/preferences. Omitted values do not overwrite a stored
-        browserName; a newly created device without this header has
-        browserName null.
+        POST /auth/request-otp and POST /auth/login-with-otp. Allowed together
+        with other WEB device metadata. Not used on PATCH /users/me/preferences.
+        Omitted values do not overwrite a stored browserName; a newly created
+        device without this header has browserName null.
       example: Chrome
     XDeviceBrowserVersion:
       name: X-Device-Browser-Version
@@ -1244,8 +1266,9 @@ components:
         Optional browser version. Updates UserDevice.browserVersion on
         POST /auth/request-otp, POST /auth/login-with-otp, and PATCH
         /users/me/preferences (existing device identified by X-Device-Id).
-        Omitted values do not overwrite a stored browserVersion; a newly
-        created device without this header has browserVersion null.
+        Allowed together with other WEB device metadata on auth. Omitted values
+        do not overwrite a stored browserVersion; a newly created device without
+        this header has browserVersion null.
       example: '131.0.6778.86'
 
   responses:
@@ -1439,6 +1462,7 @@ components:
         - appVersion
         - manufacturer
         - model
+        - osName
         - osVersion
         - browserName
         - browserVersion
@@ -1478,6 +1502,14 @@ components:
             Device model from X-Device-Model. Null when never reported.
             Omitting the header does not clear a stored value.
           example: iPhone 15
+        osName:
+          type: string
+          minLength: 1
+          nullable: true
+          description: >
+            OS name from X-Device-OS-Name. Null when never reported.
+            Omitting the header does not clear a stored value.
+          example: iOS
         osVersion:
           type: string
           minLength: 1
